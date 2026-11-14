@@ -25,7 +25,13 @@ func _ready() -> void:
 		_unpause()
 		MissionState.start_mission(MissionState.mission_id)
 		get_tree().reload_current_scene())
-	_add(v, "Choose another mission", func():
+	_add(v, "Restart the tutor", func():
+		_unpause()
+		MissionState.tutor_enabled = true
+		MissionState.tutor_step = 0
+		MissionState.tutor_done = false
+		get_tree().reload_current_scene())
+	_add(v, "Mission select", func():
 		_unpause()
 		MissionState.open_select = true
 		get_tree().change_scene_to_file("res://scenes/Main.tscn"))

@@ -62,6 +62,8 @@ func _process(delta: float) -> void:
 
 func on_focus(focused: bool) -> void:
 	_focused = focused
+	if focused:
+		get_tree().call_group("tutor", "on_part_focus", category)
 	if not focused:
 		_model.rotation = Vector3.ZERO
 	_refresh()

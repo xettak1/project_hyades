@@ -36,6 +36,27 @@ func _ready() -> void:
 		_try(mid, "default", {})
 		for dname in DESIGNS[mid]:
 			_try(mid, dname, DESIGNS[mid][dname])
+		# full-view screen: open the console screen and click its LAUNCH button through the overlay
+		var sv = lab.find_children("*", "CanvasLayer", true, false).filter(func(n): return n.has_method("open") and n.has_method("is_open"))[0]
+		var screens: Array = lab.find_children("*", "StaticBody3D", true, false).filter(func(n): return "screen_name" in n)
+		print("screens: ", screens.map(func(n): return n.screen_name))
+		var console = screens.filter(func(n): return n.screen_name == "Mission Console")[0]
+		console.interact()
+		await get_tree().process_frame
+		await get_tree().process_frame
+		var launch_btn = console.viewport.find_children("*", "Button", true, false).filter(func(b): return b.text == "LAUNCH")[0]
+		var r: Rect2 = sv._image_rect()
+		var bc: Vector2 = launch_btn.get_global_rect().get_center()
+		var win_pos: Vector2 = r.position + bc / Vector2(console.viewport.size) * r.size
+		for pressed in [true, false]:
+			var ev := InputEventMouseButton.new()
+			ev.button_index = MOUSE_BUTTON_LEFT
+			ev.pressed = pressed
+			ev.position = win_pos
+			sv._input(ev)
+			await get_tree().process_frame
+		print("view open: ", sv.is_open(), "  phase after clicking LAUNCH on screen: ", MissionState.phase, "  status: ", console.viewport.find_children("*", "Label", true, false).map(func(l): return l.text).filter(func(t): return t.begins_with("LAUNCH") or "warning" in t))
+		sv.close()
 		# real flow through the world: launch + skip
 		lab._launch()
 		lab._skip()

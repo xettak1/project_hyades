@@ -3,6 +3,8 @@ extends Node3D
 
 var _cam: Camera3D
 var _earth: MeshInstance3D
+var _globe: Node3D
+var _sat: Node3D
 var _t := 0.0
 var _menu: Control
 var _select: Control
@@ -53,6 +55,15 @@ func _build_space() -> void:
 	_earth.material_override = m
 	_earth.position = Vector3(2.5, -0.5, 0)
 	add_child(_earth)
+	var glb_earth := ModelLib.fit("earth", 6.0, "center")
+	if glb_earth:
+		_earth.visible = false
+		glb_earth.position = _earth.position
+		add_child(glb_earth)
+		_globe = glb_earth
+	_sat = ModelLib.fit("sc_cubesat", 0.5, "center")
+	if _sat:
+		add_child(_sat)
 	add_child(PartModels.ball(0.8, PartModels.mat(Color(0.65, 0.65, 0.62), 0.0, 0.95), Vector3(-6, 2.5, -9)))
 
 	# Stars
@@ -81,6 +92,12 @@ func _build_space() -> void:
 func _process(delta: float) -> void:
 	_t += delta
 	_earth.rotate_y(delta * 0.08)
+	if _globe:
+		_globe.rotate_y(delta * 0.08)
+	if _sat:
+		var a := _t * 0.25
+		_sat.position = Vector3(2.5 + cos(a) * 4.0, -0.5 + sin(a) * 1.2, sin(a) * 4.0)
+		_sat.rotate_y(delta * 0.6)
 	_cam.position = Vector3(sin(_t * 0.05) * 1.5, 0.5 + sin(_t * 0.07) * 0.4, 10)
 	_cam.look_at(Vector3(0.5, 0, 0), Vector3.UP)
 
@@ -130,7 +147,7 @@ func _build_help() -> Control:
 	p.add_child(v)
 	v.add_child(UI.label("HOW TO PLAY", 30, UI.COLOR_ACCENT))
 	for line in [
-		"1. Choose a mission. Each one takes you to a different place: a CubeSat cleanroom, a satellite integration hall or a deep-space hangar.",
+		"1. Start the Flood & Crop Watch mission. Pick 'With tutor' the first time: a mission engineer guides you step by step.",
 		"2. Read the Briefing screen: your objective and the requirements you must meet.",
 		"3. Walk to the shelves (WASD + mouse). Look at a part to read its specs, press E to install it on your spacecraft.",
 		"4. Watch the Resources and Advisors screens: every part costs mass, power and money.",
@@ -152,12 +169,17 @@ func _build_select() -> Control:
 	v.offset_top = 40
 	v.offset_bottom = -40
 	root.add_child(v)
-	v.add_child(UI.label("CHOOSE YOUR MISSION", 38, UI.COLOR_ACCENT))
+	v.add_child(UI.label("YOUR MISSION", 38, UI.COLOR_ACCENT))
 	var row := UI.hbox(18)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_child(row)
 	for id in GameData.MISSION_ORDER:
-		row.add_child(_card(id))
+		var c := _card(id)
+		if GameData.MISSION_ORDER.size() == 1:
+			c.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			c.custom_minimum_size = Vector2(620, 0)
+		row.add_child(c)
 	var back := UI.button("BACK", 20)
 	back.custom_minimum_size = Vector2(160, 44)
 	back.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
@@ -184,9 +206,17 @@ func _card(id: String) -> Control:
 	var best: int = MissionState.best_scores.get(id, 0)
 	if best > 0:
 		v.add_child(UI.label("Your best: %d / 1000" % best, 15, UI.COLOR_GOOD))
-	var b := UI.button("START MISSION", 20)
-	b.pressed.connect(func():
-		MissionState.start_mission(id)
-		get_tree().change_scene_to_file("res://scenes/Lab.tscn"))
+	var bt := UI.button("START WITH TUTOR (recommended)", 20)
+	bt.pressed.connect(func(): _start(id, true))
+	v.add_child(bt)
+	var b := UI.button("START WITHOUT TUTOR", 18)
+	b.pressed.connect(func(): _start(id, false))
 	v.add_child(b)
 	return p
+
+func _start(id: String, tutor: bool) -> void:
+	MissionState.start_mission(id)
+	MissionState.tutor_enabled = tutor
+	MissionState.tutor_step = 0
+	MissionState.tutor_done = false
+	get_tree().change_scene_to_file("res://scenes/Lab.tscn")

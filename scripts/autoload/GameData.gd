@@ -5,7 +5,8 @@ extends Node
 ## Units: mass kg, power W, energy Wh, cost $M, data GB/day, radio Mbps,
 ## orbit times in minutes, lifetime in years, delta-v in m/s, resolution in metres.
 
-const MISSION_ORDER := ["flood_watch", "radar_mapper", "lunar_mapper"]
+# Only Flood & Crop Watch is playable for now. The radar and lunar data below is kept for later.
+const MISSION_ORDER := ["flood_watch"]
 
 const MISSIONS := {
 	# ------------------------------------------------------------------ EASY
@@ -26,7 +27,12 @@ const MISSIONS := {
 		"env": {"title": "CUBESAT INTEGRATION LAB", "room": Vector3(20, 6, 18),
 			"wall": Color(0.85, 0.87, 0.9), "floor": Color(0.55, 0.57, 0.6), "accent": Color(0.3, 0.65, 1.0),
 			"light": Color(1, 1, 1), "sat_style": "cubesat", "sat_y": 1.3, "part_scale": 1.0,
-			"table": Color(0.3, 0.32, 0.36), "stripes": false},
+			"table": Color(0.3, 0.32, 0.36), "stripes": false,
+			"orbit_model": "sc_cubesat",
+			# Exhibits: [model, x, z, height m, yaw, plaque]. z is measured from the front wall (lab) or "mc" for Mission Control.
+			"exhibits": [["ex_astronaut", -6.0, 2.5, 1.8, 30.0, "Spacesuit (EMU)"],
+				["ex_friendship7", 6.0, 2.5, 1.6, -30.0, "Mercury capsule Friendship 7 (1962)"],
+				["ex_dsn34", 6.8, "mc", 2.6, -60.0, "Ground segment: Deep Space Network 34 m antenna"]]},
 	},
 	# ------------------------------------------------------------------ MEDIUM
 	"radar_mapper": {
@@ -46,7 +52,12 @@ const MISSIONS := {
 		"env": {"title": "SATELLITE INTEGRATION HALL", "room": Vector3(26, 8, 22),
 			"wall": Color(0.5, 0.5, 0.48), "floor": Color(0.32, 0.33, 0.35), "accent": Color(1.0, 0.6, 0.15),
 			"light": Color(1.0, 0.95, 0.85), "lamp": 1.2, "sat_style": "smallsat", "sat_y": 1.7, "part_scale": 1.5,
-			"table": Color(0.45, 0.35, 0.2), "stripes": true},
+			"table": Color(0.45, 0.35, 0.2), "stripes": true,
+			"orbit_model": "sc_landsat8",
+			"exhibits": [["ex_ares1", -8.5, 2.8, 7.0, 0.0, "Ares I rocket (scale model)"],
+				["ex_acrimsat", 8.5, 2.8, 1.6, -30.0, "AcrimSAT: a small Sun-watching satellite"],
+				["ex_dsn_antenna", 8.0, "mc", 3.0, -60.0, "Ground segment: ground station antenna"],
+				["ex_tdrs", -8.0, "mc", 2.2, 40.0, "TDRS relay satellite: talks to other spacecraft"]]},
 	},
 	# ------------------------------------------------------------------ HARD
 	"lunar_mapper": {
@@ -66,7 +77,11 @@ const MISSIONS := {
 		"env": {"title": "DEEP SPACE MISSION HANGAR", "room": Vector3(28, 10, 24),
 			"wall": Color(0.12, 0.14, 0.22), "floor": Color(0.1, 0.11, 0.15), "accent": Color(0.75, 0.6, 1.0),
 			"light": Color(0.8, 0.85, 1.0), "lamp": 1.6, "sat_style": "orbiter", "sat_y": 2.2, "part_scale": 1.6,
-			"table": Color(0.2, 0.22, 0.3), "stripes": false},
+			"table": Color(0.2, 0.22, 0.3), "stripes": false,
+			"orbit_model": "sc_mro",
+			"exhibits": [["ex_sls", -9.0, 3.0, 9.0, 0.0, "Space Launch System: the Artemis Moon rocket"],
+				["ex_pioneer10", 9.5, 3.0, 2.6, -30.0, "Pioneer 10: first probe to Jupiter (1972)"],
+				["ex_dsn70", 9.0, "mc", 3.6, -60.0, "Ground segment: Deep Space Network 70 m dish"]]},
 	},
 }
 

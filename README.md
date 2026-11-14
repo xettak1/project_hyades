@@ -48,3 +48,18 @@ WASD / arrows: walk · Mouse: look · E or left-click: use · Esc: pause menu
 - Earth texture: NASA Blue Marble map saved as `assets/earth.jpg`.
 - GMAT orbits: `data/orbits/leo_550_path.csv`, `sso_550_path.csv` (columns `t_sec,x_km,y_km,z_km`).
 - Real 3D models: import a .glb into `assets/models/` and return it from `PartModels.build()` for that part id.
+
+## 3D models (assets/models)
+Loaded by `scripts/world/ModelLib.gd`, which measures each model and scales it to fit, so any size of `.glb` works.
+- **Part models:** a file named after a part id (e.g. `radio_x.glb`, `tank_l.glb`, `bus_...`) replaces the built-in shape automatically (see `PartModels.GLB_SIZE`).
+- **Orbit view spacecraft:** `env.orbit_model` per mission (`sc_cubesat`, `sc_landsat8`, `sc_mro`).
+- **Planets:** `earth.glb` (and `moon.glb` if added).
+- **Exhibits:** `env.exhibits` per mission (model, position, height, rotation, plaque text).
+- Godot cannot read Draco-compressed `.glb` files. These were decompressed with gltf-transform first:
+  cubesat, Landsat 8, Astronaut, Friendship 7, DSN 34 m, DSN antenna, Ares I, TDRS, Pioneer 10.
+
+Model credits: NASA 3D Resources (https://science.nasa.gov/3d-resources/). Follow NASA's media usage guidelines.
+
+## Screens
+Look at any wall screen and press E to open it full view. Click buttons on it (Mission Console: orbit, rocket,
+lifetime, LAUNCH; Operations: speed, skip; Report: back to lab). E, Esc or right-click closes it.

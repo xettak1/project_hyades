@@ -1,10 +1,20 @@
-extends Node3D
+extends StaticBody3D
 ## A wall monitor: a 2D panel (or a 3D view) rendered onto a screen in the room.
+## Look at it and press E to open it full view; you can then click on it.
 
 var viewport: SubViewport
+var screen_name := "screen"
+var size_m := Vector2.ONE
 var _content: Node
 
-func setup(size_m: Vector2, pixels: Vector2i, title: String = "", title_color: Color = UI.COLOR_ACCENT) -> void:
+func setup(sz: Vector2, pixels: Vector2i, title: String = "", title_color: Color = UI.COLOR_ACCENT, prompt_name: String = "") -> void:
+	size_m = sz
+	screen_name = prompt_name if prompt_name != "" else (title.capitalize() if title != "" else "screen")
+	var cs := CollisionShape3D.new()
+	var bs := BoxShape3D.new()
+	bs.size = Vector3(size_m.x, size_m.y, 0.06)
+	cs.shape = bs
+	add_child(cs)
 	viewport = SubViewport.new()
 	viewport.size = pixels
 	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
@@ -67,6 +77,15 @@ func overlay(panel: Control) -> void:
 		margin.add_theme_constant_override("margin_" + side, 24)
 	viewport.add_child(margin)
 	margin.add_child(panel)
+
+func on_focus(_f: bool) -> void:
+	pass
+
+func get_prompt() -> String:
+	return "[E] Use the %s screen" % screen_name
+
+func interact() -> void:
+	get_tree().call_group("screenview", "open", self)
 
 func clear() -> void:
 	for c in viewport.get_children():

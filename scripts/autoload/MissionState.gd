@@ -11,6 +11,9 @@ var lifetime_years: int = 2
 var last_result: Dictionary = {}    # filled by the simulation
 var best_scores: Dictionary = {}    # mission id -> best score
 var runs: int = 0
+var tutor_enabled := true         # chosen on the title screen
+var tutor_step := 0
+var tutor_done := false
 var phase: String = "design"        # design | ops
 var open_select := false            # title screen opens straight on mission select
 

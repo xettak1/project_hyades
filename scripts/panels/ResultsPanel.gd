@@ -42,7 +42,11 @@ func _ready() -> void:
 	if not comp.is_empty():
 		add_child(UI.label("REAL MISSION MOST LIKE YOURS: " + comp["name"], 16, UI.COLOR_ACCENT))
 		add_child(UI.label(comp["text"], 16))
-	add_child(UI.label("Walk back to the lab to change the design and launch again. Press Esc to choose another mission.", 16, UI.COLOR_MUTED))
+	var back := UI.button("Redesign: back to the lab", 18)
+	back.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	back.pressed.connect(func(): get_tree().call_group("lab", "back_to_lab"))
+	add_child(back)
+	add_child(UI.label("Tip: press E on this screen to read it full view. Esc in the lab opens the menu to choose another mission.", 15, UI.COLOR_MUTED))
 
 func _req(ok: bool, text: String) -> Label:
 	return UI.label(("PASS  " if ok else "FAIL  ") + text, 17, UI.COLOR_GOOD if ok else UI.COLOR_BAD)

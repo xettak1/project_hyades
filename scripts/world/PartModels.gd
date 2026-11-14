@@ -65,8 +65,17 @@ static func tiles(n: Node3D, size: Vector2, cols: int, rows: int, y: float, m: M
 		for j in rows:
 			n.add_child(box(Vector3(cw * 0.86, 0.012, ch * 0.86), m, Vector3(-size.x / 2 + cw * (i + 0.5), y, -size.y / 2 + ch * (j + 0.5))))
 
+## Size (largest side, metres) a .glb part model is shown at; default 0.5.
+const GLB_SIZE := {"solar_body": 0.55, "solar_deploy": 0.55, "sar_small": 0.6, "sar_large": 0.9,
+	"dish_big": 0.6, "telescope": 0.6, "tank_s": 0.4, "tank_l": 0.55, "bat_10": 0.25, "bat_30": 0.45,
+	"obc_std": 0.3, "obc_big": 0.3, "cam_basic": 0.35, "cam_hd": 0.5, "radio_uhf": 0.5}
+
 ## Returns a model of the part, about 0.3-0.6 m across, resting on y = 0.
+## If res://assets/models/<id>.glb exists it is used; otherwise a model is built from shapes.
 static func build(category: String, id: String) -> Node3D:
+	var glb := ModelLib.fit(id, GLB_SIZE.get(id, 0.5))
+	if glb:
+		return glb
 	var n := Node3D.new()
 	match id:
 		"sar_small", "sar_large":

@@ -8,6 +8,7 @@ const GRAVITY := 9.8
 var cam: Camera3D
 var ray: RayCast3D
 var focused: Object = null
+var frozen := false   # true while a screen is open full view
 
 func _ready() -> void:
 	var shape := CollisionShape3D.new()
@@ -38,6 +39,8 @@ func teleport(pos: Vector3, yaw_deg: float) -> void:
 	velocity = Vector3.ZERO
 
 func _unhandled_input(event: InputEvent) -> void:
+	if frozen:
+		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		rotate_y(-event.relative.x * SENS)
 		cam.rotate_x(-event.relative.y * SENS)
@@ -54,6 +57,9 @@ func use() -> void:
 		focused.interact()
 
 func _physics_process(delta: float) -> void:
+	if frozen:
+		velocity = Vector3.ZERO
+		return
 	var dir := Vector3.ZERO
 	if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP): dir.z -= 1
 	if Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN): dir.z += 1

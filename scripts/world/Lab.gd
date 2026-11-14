@@ -17,6 +17,7 @@ const Player := preload("res://scripts/world/Player.gd")
 const HUD := preload("res://scripts/world/HUD.gd")
 const OrbitView := preload("res://scripts/world/OrbitView.gd")
 const PauseMenu := preload("res://scripts/world/PauseMenu.gd")
+const ScreenView := preload("res://scripts/world/ScreenView.gd")
 const Simulator := preload("res://scripts/sim/Simulator.gd")
 const DAYS_PER_SECOND := 30.0
 
@@ -45,7 +46,7 @@ var player: CharacterBody3D
 var hud: CanvasLayer
 var console_panel: VBoxContainer
 var ops_screen: Node3D
-var ops_panel: VBoxContainer
+var ops_panel: Control
 var orbit_buttons: Dictionary = {}
 var rocket_buttons: Dictionary = {}
 var speed_buttons: Dictionary = {}
@@ -60,6 +61,7 @@ func _ready() -> void:
 	if MissionState.picks.is_empty():
 		MissionState.start_mission("flood_watch")
 	MissionState.phase = "design"
+	add_to_group("lab")
 	env = MissionState.mission()["env"]
 	R = env["room"]
 	hx = R.x / 2.0
@@ -74,6 +76,7 @@ func _ready() -> void:
 	_build_environment()
 	_build_room()
 	_build_decor()
+	_build_exhibits()
 	_build_shelves()
 	_build_stand()
 	_build_wall_screens()
@@ -86,9 +89,17 @@ func _ready() -> void:
 	add_child(player)
 	player.teleport(spawn, 0.0)
 	add_child(PauseMenu.new())
+	var sv := ScreenView.new()
+	sv.player = player
+	add_child(sv)
 	MissionState.design_changed.connect(_update_console_lights)
 	_update_console_lights()
-	hud.show_message("%s - %s. Read the briefing on the front wall, then build your spacecraft." % [env["title"].capitalize(), MissionState.mission()["name"]], 6.0)
+	if MissionState.tutor_enabled:
+		var tutor := preload("res://scripts/world/Tutor.gd").new()
+		tutor.lab = self
+		add_child(tutor)
+	else:
+		hud.show_message("%s - %s. Read the briefing on the front wall, then build your spacecraft." % [env["title"].capitalize(), MissionState.mission()["name"]], 6.0)
 
 # ---------------------------------------------------------------- world
 func _build_environment() -> void:
@@ -100,6 +111,21 @@ func _build_environment() -> void:
 	e.ambient_light_color = env["light"] * 0.6
 	e.ambient_light_energy = 0.6
 	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	# Real-world panorama used for reflections on metal (the satellite, bezels, floor plates).
+	if ResourceLoader.exists(HDRI):
+		var pano := PanoramaSkyMaterial.new()
+		pano.panorama = load(HDRI)
+		var sky := Sky.new()
+		sky.sky_material = pano
+		e.sky = sky
+		e.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
+		e.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+		e.ambient_light_sky_contribution = 0.55
+		e.ambient_light_energy = 0.9
+	e.ssao_enabled = true
+	e.ssao_intensity = 1.6
+	e.glow_enabled = true
+	e.glow_intensity = 0.4
 	we.environment = e
 	add_child(we)
 	var x := -hx + 4.0
@@ -114,6 +140,26 @@ func _build_environment() -> void:
 			add_child(l)
 			z += 6.0
 		x += 6.0
+
+const TEX_FLOOR := "res://assets/textures/metal_plate_diff.jpg"
+const TEX_WALL := "res://assets/textures/rusty_metal_diff.jpg"
+const HDRI := "res://assets/textures/hdri_indoor.jpg"
+
+## Tiled texture material. scale = repeats per metre (world-space triplanar, so any box works).
+## Falls back to a plain colour if the texture file is missing.
+func _tex_mat(path: String, scale: float, tint: Color, metal: float, rough: float, fallback: Color) -> StandardMaterial3D:
+	if not ResourceLoader.exists(path):
+		return PartModels.mat(fallback, 0.0, 0.8)
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = load(path)
+	m.albedo_color = tint
+	m.metallic = metal
+	m.roughness = rough
+	m.uv1_triplanar = true
+	m.uv1_world_triplanar = true
+	m.uv1_scale = Vector3.ONE * scale
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	return m
 
 func _solid(size: Vector3, pos: Vector3, m: Material) -> StaticBody3D:
 	var body := StaticBody3D.new()
@@ -140,16 +186,18 @@ func _sign(text: String, pos: Vector3, yaw: float, size: int = 64, color: Color 
 	return l
 
 func _build_room() -> void:
-	var floor_m := PartModels.mat(env["floor"], 0.0, 0.8)
-	var wall_m := PartModels.mat(env["wall"], 0.0, 0.9)
+	# Worn industrial look: diamond-plate floor, rusty painted metal walls.
+	var floor_m := _tex_mat(TEX_FLOOR, 0.45, Color(1, 1, 1), 0.55, 0.6, env["floor"])
+	var wall_m := _tex_mat(TEX_WALL, 0.28, Color(1.25, 1.25, 1.25), 0.25, 0.75, env["wall"])
+	var ceil_m := _tex_mat(TEX_WALL, 0.2, Color(0.7, 0.7, 0.7), 0.25, 0.8, env["wall"])
 	_solid(Vector3(R.x, 0.2, R.z), Vector3(0, -0.1, 0), floor_m)
-	_solid(Vector3(R.x, 0.2, R.z), Vector3(0, R.y + 0.1, 0), wall_m)
+	_solid(Vector3(R.x, 0.2, R.z), Vector3(0, R.y + 0.1, 0), ceil_m)
 	_solid(Vector3(R.x, R.y, 0.2), Vector3(0, R.y / 2, -hz - 0.1), wall_m)
 	_solid(Vector3(R.x, R.y, 0.2), Vector3(0, R.y / 2, hz + 0.1), wall_m)
 	_solid(Vector3(0.2, R.y, R.z), Vector3(-hx - 0.1, R.y / 2, 0), wall_m)
 	_solid(Vector3(0.2, R.y, R.z), Vector3(hx + 0.1, R.y / 2, 0), wall_m)
 	var mc_len := hz - mc_start
-	add_child(PartModels.box(Vector3(R.x, 0.01, mc_len), PartModels.mat(Color(0.15, 0.2, 0.32)), Vector3(0, 0.005, mc_start + mc_len / 2)))
+	add_child(PartModels.box(Vector3(R.x, 0.01, mc_len), _tex_mat(TEX_FLOOR, 0.45, Color(0.75, 0.8, 1.0), 0.6, 0.55, Color(0.15, 0.2, 0.32)), Vector3(0, 0.005, mc_start + mc_len / 2)))
 	add_child(PartModels.box(Vector3(R.x, 0.012, 0.1), PartModels.mat(env["accent"]), Vector3(0, 0.006, mc_start)))
 	_sign(env["title"], Vector3(0, R.y - 0.4, -hz + 0.05), 0.0, 72)
 	_sign("MISSION CONTROL", Vector3(0, R.y - 0.4, hz - 0.05), 180.0, 72)
@@ -157,7 +205,7 @@ func _build_room() -> void:
 func _build_decor() -> void:
 	match env["sat_style"]:
 		"cubesat":
-			_sign("ISO 8 CLEANROOM - HANDLE PARTS WITH CARE", Vector3(-hx + 0.05, R.y - 1.2, stand_z), 90.0, 40, Color(0.4, 0.4, 0.45))
+			_sign("INTEGRATION BAY - HANDLE PARTS WITH CARE", Vector3(-hx + 0.05, R.y - 1.2, stand_z), 90.0, 40, Color(0.4, 0.4, 0.45))
 		"smallsat":
 			# Overhead gantry crane
 			var orange := PartModels.mat(Color(1.0, 0.55, 0.1), 0.5, 0.5)
@@ -178,6 +226,30 @@ func _build_decor() -> void:
 				star.position = Vector3(hx - 0.08, randf_range(4.5, R.y - 0.5), randf_range(-hz + 1, mc_start))
 				add_child(star)
 			_sign("NEXT STOP: THE MOON", Vector3(-hx + 2.8, 4.8, mc_start - 1.0), 90.0, 44)
+
+## Real NASA 3D models on pedestals (only if the .glb file is in assets/models).
+func _build_exhibits() -> void:
+	for ex in env.get("exhibits", []):
+		var model_name: String = ex[0]
+		var h: float = ex[3]
+		var m := ModelLib.fit(model_name, h, "height")
+		if m == null:
+			continue
+		var z: float = (hz - 2.6) if str(ex[2]) == "mc" else (-hz + float(ex[2]))
+		var pos := Vector3(float(ex[1]), 0.0, z)
+		var foot := clampf(h * 0.35, 0.9, 2.2)
+		_solid(Vector3(foot, 0.3, foot), pos + Vector3(0, 0.15, 0), PartModels.mat(Color(0.2, 0.22, 0.26), 0.5, 0.4))
+		m.position = pos + Vector3(0, 0.3, 0)
+		m.rotation_degrees.y = ex[4]
+		add_child(m)
+		var plaque := Label3D.new()
+		plaque.text = ex[5]
+		plaque.font_size = 28
+		plaque.pixel_size = 0.004
+		plaque.outline_size = 8
+		plaque.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+		plaque.position = pos + Vector3(0, 0.75, 0)
+		add_child(plaque)
 
 # ---------------------------------------------------------------- shelves
 func _slot_z(i: int) -> float:
@@ -230,19 +302,19 @@ func _build_wall_screens() -> void:
 	var brief := Screen3D.new()
 	brief.position = Vector3(-5.6 * k, y, -hz + 0.05)
 	add_child(brief)
-	brief.setup(Vector2(3.9, 2.6) * k, Vector2i(900, 600), "BRIEFING", env["accent"])
+	brief.setup(Vector2(3.9, 2.6) * k, Vector2i(900, 600), "BRIEFING", env["accent"], "Briefing")
 	brief.set_panel(preload("res://scripts/panels/BriefingPanel.gd").new())
 
 	var res := Screen3D.new()
 	res.position = Vector3(0, y + 0.4 * k, -hz + 0.05)
 	add_child(res)
-	res.setup(Vector2(2.7, 2.9) * k, Vector2i(500, 540), "RESOURCES", env["accent"])
+	res.setup(Vector2(2.7, 2.9) * k, Vector2i(500, 540), "RESOURCES", env["accent"], "Resources")
 	res.set_panel(preload("res://scripts/ui/Dashboard.gd").new())
 
 	var adv := Screen3D.new()
 	adv.position = Vector3(5.6 * k, y, -hz + 0.05)
 	add_child(adv)
-	adv.setup(Vector2(3.9, 2.6) * k, Vector2i(900, 600), "ADVISORS", env["accent"])
+	adv.setup(Vector2(3.9, 2.6) * k, Vector2i(900, 600), "ADVISORS", env["accent"], "Advisors")
 	adv.set_panel(preload("res://scripts/panels/AdvisorsPanel.gd").new())
 
 # ---------------------------------------------------------------- console
@@ -263,7 +335,7 @@ func _build_console() -> void:
 	scr.position = Vector3(hx - 0.05, 2.25, z0)
 	scr.rotation_degrees.y = -90.0
 	add_child(scr)
-	scr.setup(Vector2(2.7, 1.8), Vector2i(720, 480))
+	scr.setup(Vector2(2.7, 1.89), Vector2i(800, 560), "", UI.COLOR_ACCENT, "Mission Console")
 	console_panel = preload("res://scripts/panels/ConsolePanel.gd").new()
 	scr.set_panel(console_panel)
 
@@ -301,7 +373,7 @@ func _build_mission_control() -> void:
 	ops_screen.position = Vector3(0, sy, hz - 0.05)
 	ops_screen.rotation_degrees.y = 180.0
 	add_child(ops_screen)
-	ops_screen.setup(Vector2(7.0, 3.94) * minf(k, 1.25), Vector2i(1024, 576), "")
+	ops_screen.setup(Vector2(7.0, 3.94) * minf(k, 1.25), Vector2i(1024, 576), "", UI.COLOR_ACCENT, "Orbit View")
 	var idle := VBoxContainer.new()
 	idle.add_child(UI.label("NO SPACECRAFT IN FLIGHT", 40, UI.COLOR_MUTED))
 	idle.add_child(UI.label("Build your spacecraft in the lab and press LAUNCH on the Mission Console.", 26, UI.COLOR_MUTED))
@@ -311,8 +383,8 @@ func _build_mission_control() -> void:
 	side.position = Vector3(-6.8 * k, sy, hz - 0.05)
 	side.rotation_degrees.y = 180.0
 	add_child(side)
-	side.setup(Vector2(3.9, 2.6) * k, Vector2i(900, 600), "OPERATIONS", env["accent"])
-	ops_panel = preload("res://scripts/panels/OpsPanel.gd").new()
+	side.setup(Vector2(4.4, 2.475) * k, Vector2i(1600, 900), "ORBIT & TRAJECTORY", env["accent"], "Orbit & Trajectory Monitor")
+	ops_panel = preload("res://scripts/panels/OrbitMonitorPanel.gd").new()
 	side.set_panel(ops_panel)
 
 	speed_buttons["1"] = _desk_button("SPEED\n1x", UI.COLOR_ACCENT, func(): _set_speed(1.0), 1.6)
@@ -325,6 +397,20 @@ func _set_speed(s: float) -> void:
 	speed = s
 	speed_buttons["1"].set_lit(s == 1.0)
 	speed_buttons["10"].set_lit(s == 10.0)
+
+# ---------------------------------------------------------------- called from screen buttons
+func request_launch() -> void:
+	_on_launch_pressed()
+
+func request_speed(s: float) -> void:
+	_set_speed(s)
+
+func request_skip() -> void:
+	_skip()
+
+func back_to_lab() -> void:
+	get_tree().call_group("screenview", "close")
+	player.teleport(spawn, 0.0)
 
 # ---------------------------------------------------------------- launch + operations
 func _on_launch_pressed() -> void:
@@ -353,8 +439,10 @@ func _launch() -> void:
 	ops_panel.reset()
 	_day_accum = 0.0
 	_launch_delay = 2.0
+	get_tree().call_group("screenview", "close")
 	player.teleport(ops_spot, 180.0)
 	hud.show_message("LIFTOFF! Your spacecraft is on its way.", 4.0)
+	get_tree().call_group("tutor", "on_event", "launch")
 
 func _skip() -> void:
 	if MissionState.phase != "ops" or sim == null:
@@ -392,4 +480,5 @@ func _finish() -> void:
 	MissionState.best_scores[MissionState.mission_id] = maxi(MissionState.best_score, int(r["score"]))
 	MissionState.phase = "design"
 	ops_screen.overlay(preload("res://scripts/panels/ResultsPanel.gd").new())
+	get_tree().call_group("tutor", "on_event", "finished")
 	hud.show_message("Mission over: %s, %d / 1000. Read the report on the big screen." % [r["rating"], r["score"]], 6.0)
