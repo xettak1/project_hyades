@@ -45,6 +45,9 @@ func _ready() -> void:
 	add_child(Instruments.new())
 	add_child(ProgressBarUI.new())
 	add_child(preload("res://scripts/world/DecisionCard.gd").new())
+	var instr := preload("res://scripts/ui/MissionInstructions.gd").new()
+	instr.room = self
+	add_child(instr)
 	var tutor := TutorManager.new()
 	tutor.room = self
 	add_child(tutor)

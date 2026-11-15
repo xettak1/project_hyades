@@ -236,6 +236,8 @@ func select_region(id: String) -> void:
 	MissionState.set_live("region_name", FarmRegions.region(id)["name"])
 	if not in_view(id):
 		get_tree().call_group("tutor", "on_event", "not_in_view")
+	elif scans_done == 0:
+		get_tree().call_group("tutor", "on_event", "region_selected")
 
 func scan() -> void:
 	if scan_blocker() != "" or scanning:

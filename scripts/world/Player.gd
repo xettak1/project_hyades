@@ -42,8 +42,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if frozen:
 		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		rotate_y(-event.relative.x * SENS)
-		cam.rotate_x(-event.relative.y * SENS)
+		rotate_y(-event.relative.x * SENS * SaveGame.mouse_sens)
+		cam.rotate_x(-event.relative.y * SENS * SaveGame.mouse_sens)
 		cam.rotation.x = clampf(cam.rotation.x, -1.4, 1.4)
 	elif event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_E:

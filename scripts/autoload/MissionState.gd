@@ -16,6 +16,7 @@ var tutor_enabled := true         # chosen on the title screen
 var tutor_steps: Dictionary = {}   # level id -> guided step reached (see TutorDialogueManager)
 var phase: String = "design"        # design | ops
 var open_select := false            # title screen opens straight on mission select
+var open_brief := false             # title screen opens straight on the briefing (after the intro)
 ## What each level achieved, keyed by level id (launch / space / ground / user).
 ## Written by LevelFlow.complete(); read by later levels so decisions carry through.
 var level_results: Dictionary = {}

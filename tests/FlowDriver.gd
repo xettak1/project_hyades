@@ -19,7 +19,9 @@ func run() -> void:
 	DirAccess.make_dir_recursive_absolute("/tmp/flow")
 	get_tree().change_scene_to_file("res://scenes/Main.tscn")
 	await _shot("0_title", 20)
-	get_tree().current_scene._start("flood_watch", true)
+	SaveGame.play_intro = false
+	SaveGame.tutor = true
+	get_tree().current_scene._new_game()
 	await _shot("0_briefing", 10)
 	LevelFlow.start()
 	await _wait_card_then_skip("1_card_launch")

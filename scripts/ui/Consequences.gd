@@ -17,6 +17,28 @@ const METRICS := [
 	["Orbit can last", "life_cap", "years", 0, 1],
 ]
 
+const SHORT := {"useful_per_day": "Data to Earth", "data_gen": "Data made", "downlink": "Radio speed", "revisit": "Revisit",
+	"load_w": "Power used", "gen_avg": "Solar power", "battery_spare": "Battery spare", "mass": "Mass", "cost": "Cost", "life_cap": "Orbit life"}
+
+## Short rows for the Decision card: [label, "+0.09 GB/day", kind]. Most important first.
+static func compact(before: Dictionary, after: Dictionary, max_rows: int = 3) -> Array:
+	var out: Array = []
+	for mrow in METRICS:
+		var a := _val(before["x"], mrow[1])
+		var b := _val(after["x"], mrow[1])
+		if absf(b - a) < 0.005:
+			continue
+		var fmt := "%+." + str(mrow[3]) + "f"
+		var unit: String = mrow[2]
+		var txt := (fmt % (b - a)) + " " + unit
+		if unit == "$M":
+			txt = ("+$%.2fM" if b > a else "−$%.2fM") % absf(b - a)
+		var kind := "info" if mrow[4] == 0 else ("good" if (b - a) * mrow[4] > 0.0 else "warn")
+		out.append([SHORT.get(mrow[1], mrow[0]), txt, kind])
+		if out.size() >= max_rows:
+			break
+	return out
+
 static func _val(x: Dictionary, key: String) -> float:
 	if key == "battery_spare":
 		return float(x["usable_wh"]) - float(x["need_wh"])

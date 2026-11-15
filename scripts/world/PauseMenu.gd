@@ -65,6 +65,8 @@ func _add_volume_control(v: VBoxContainer) -> void:
 	value_label.custom_minimum_size = Vector2(42, 0)
 	slider.value_changed.connect(func(value: float):
 		AudioManager.set_music_volume(value / 100.0)
+		SaveGame.music_volume = value / 100.0
+		SaveGame.save_settings()
 		value_label.text = "%d%%" % int(value))
 	row.add_child(slider)
 	row.add_child(value_label)

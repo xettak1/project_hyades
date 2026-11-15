@@ -110,15 +110,15 @@ func _show() -> void:
 	line = clampi(line, 0, says.size() - 1)
 	var last := line >= says.size() - 1
 	var until: String = st.get("until", "next")
-	ui.show_line(_fill(says[line]), "%s · STEP %d/%d" % [stage, step_index() + 1, steps.size()],
+	ui.show_line(_fill(says[line]), stage,
 		st.get("todo", "") if last else "", (not last) or until == "next", says.size() > 1 and not last, "step")
 
 func _idle_line() -> String:
 	match level:
-		"launch": return "You're in charge, Director. Look at any part to see what it would change, and press LAUNCH when LAUNCH CONTROL says READY."
-		"space": return "Pick a region that's IN VIEW on the Observation Console and scan it. End the campaign when you're done."
-		"ground": return "Set the PRIORITY on the middle desk, then press START PASS and watch the dishes track the satellite."
-	return "Mark the flooded plots at the Analysis Workstation, choose a product and deliver the report."
+		"launch": return "You're in charge, Director. The **instructions** on the right show what to do next."
+		"space": return "Scan the regions that are **in view** and not under cloud."
+		"ground": return "Choose a **priority**, then start the pass."
+	return "Find the **flooded plots** and warn the farmers."
 
 func next() -> void:
 	if ui.is_typing():
@@ -172,6 +172,8 @@ func _snapshot() -> Dictionary:
 
 func _on_design_changed() -> void:
 	_flags["pick"] = true
+	if MissionState.picks != _snap.get("picks", {}):
+		get_tree().call_group("instructions", "on_pick")
 	if MissionState.phase != "design":
 		_snap = _snapshot()
 		return
@@ -206,12 +208,14 @@ func _on_design_changed() -> void:
 # ======================================================================= events from the game
 func on_screen_opened(name: String) -> void:
 	_flags["open:" + name] = true
+	get_tree().call_group("instructions", "on_screen_opened", name)
 
 func on_screen_closed() -> void:
 	_flags["close"] = true
 
 func on_part_focus(category: String) -> void:
 	_flags["focus_part"] = true
+	get_tree().call_group("instructions", "on_part_focus", category)
 	if not _seen_cats.has(category) and reaction.is_empty():
 		_seen_cats[category] = true
 		var c: String = data.get("concepts", {}).get(category, "")
@@ -219,6 +223,7 @@ func on_part_focus(category: String) -> void:
 			react(c, "reaction")
 
 func on_event(ev: String) -> void:
+	get_tree().call_group("instructions", "on_event", ev)
 	_flags["event:" + ev] = true
 	_flags[ev] = true
 	for rule in data.get("reactions", []):

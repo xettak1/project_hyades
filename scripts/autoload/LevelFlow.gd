@@ -80,9 +80,15 @@ func complete(results: Dictionary) -> void:
 	MissionState.level_results[current_id()] = results
 	index += 1
 	if index >= LEVELS.size():
+		SaveGame.clear_progress()
 		_go(RESULTS_SCENE, false)
 	else:
 		_go(current()["scene"], true)
+
+## Continue a saved mission at level i (see SaveGame).
+func resume(i: int) -> void:
+	index = clampi(i, 0, LEVELS.size() - 1)
+	_go(current()["scene"], true)
 
 func restart_level() -> void:
 	if index >= 0:
@@ -125,6 +131,7 @@ func _go(scene: String, show_card: bool) -> void:
 	get_tree().paused = false
 	get_tree().change_scene_to_file(scene)
 	if show_card:
+		SaveGame.save_progress(index)
 		var lv := current()
 		_l_step.text = "LEVEL %d OF %d  ·  %s" % [lv["n"], LEVELS.size(), lv.get("where", "")]
 		_l_title.text = lv["title"]

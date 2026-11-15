@@ -1,32 +1,47 @@
 extends Node3D
-## Title screen and mission select. A slowly turning Earth and Moon behind the menu.
+## Title screen: Earth at sunrise filling the bottom of the screen, an astronaut and two
+## satellites drifting past, the game logo and copper menu bars on the left.
+## Pages: main menu, options (with how to play), mission briefing.
+
+const COPPER := Color(0.92, 0.52, 0.2)
+const CREAM := Color(1.0, 0.94, 0.86)
+const PANEL_BG := Color(0.07, 0.035, 0.02, 0.86)
+const ASTRO_POS := Vector3(1.9, 2.3, -13)
 
 var _cam: Camera3D
-var _earth: MeshInstance3D
-var _globe: Node3D
+var _earth: Node3D
+var _astro: Node3D
 var _moon: Node3D
-var _sat: Node3D
+var _sats: Array = []
+var _glow: MeshInstance3D
 var _t := 0.0
 var _menu: Control
-var _select: Control
-var _help: Control
+var _options: Control
 var _brief: Control
+var _logo: Control
 
 func _ready() -> void:
+	SaveGame.load_settings()
+	AudioManager.set_music_volume(SaveGame.music_volume)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	get_tree().paused = false
 	_build_space()
 	var ui := CanvasLayer.new()
 	add_child(ui)
+	ui.add_child(_vignette())
+	_logo = _build_logo()
+	ui.add_child(_logo)
 	_menu = _build_menu()
 	ui.add_child(_menu)
-	_select = _build_select()
-	ui.add_child(_select)
-	_help = _build_help()
-	ui.add_child(_help)
+	_options = _build_options()
+	ui.add_child(_options)
 	_brief = _build_briefing()
 	ui.add_child(_brief)
-	_show(_select if MissionState.open_select else _menu)
+	if MissionState.open_brief:
+		MissionState.open_brief = false
+		_show(_brief)
+	else:
+		_show(_menu)
 	MissionState.open_select = false
 
 # ---------------------------------------------------------------- 3D backdrop
@@ -34,237 +49,322 @@ func _build_space() -> void:
 	var we := WorldEnvironment.new()
 	var e := Environment.new()
 	e.background_mode = Environment.BG_COLOR
-	e.background_color = Color(0.005, 0.005, 0.02)
+	e.background_color = Color(0.0, 0.0, 0.008)
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	e.ambient_light_color = Color(0.15, 0.17, 0.25)
+	e.ambient_light_color = Color(0.25, 0.3, 0.42)
+	e.ambient_light_energy = 0.35
+	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	e.tonemap_exposure = 1.1
+	e.glow_enabled = true
+	e.glow_intensity = 0.9
+	e.glow_bloom = 0.12
+	e.glow_hdr_threshold = 0.9
 	we.environment = e
 	add_child(we)
-	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-15, -60, 0)
-	sun.light_energy = 1.5
-	add_child(sun)
 
-	_earth = MeshInstance3D.new()
-	var s := SphereMesh.new()
-	s.radius = 3.0
-	s.height = 6.0
-	s.radial_segments = 64
-	s.rings = 32
-	_earth.mesh = s
-	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(0.2, 0.45, 0.9)
-	if ResourceLoader.exists("res://assets/earth.jpg"):
-		m.albedo_texture = load("res://assets/earth.jpg")
-		m.albedo_color = Color.WHITE
-	_earth.material_override = m
-	_earth.position = Vector3(2.5, -0.5, 0)
+	Outdoor.stars(self, 1400, 2600.0)
+
+	# Earth: a huge globe whose edge sweeps across the lower part of the view.
+	var centre := Vector3(0.24, -0.86, -0.4).normalized() * 790.0
+	_earth = preload("res://scripts/world/EarthGlobe.gd").new()
 	add_child(_earth)
-	var glb_earth := ModelLib.fit("earth", 6.0, "center")
-	if glb_earth:
-		_earth.visible = false
-		glb_earth.position = _earth.position
-		add_child(glb_earth)
-		_globe = glb_earth
-	_sat = ModelLib.fit("cubesat", 0.5, "center")
-	if _sat:
-		add_child(_sat)
-	_moon = ModelLib.fit("moon", 1.6, "center")
-	if _moon:
-		_moon.position = Vector3(-6, 2.5, -9)
-		add_child(_moon)
+	_earth.position = centre
+	_earth.call_deferred("face", 9.0, 6.0, (-centre).normalized().lerp(Vector3(0, 0, 1), 0.35).normalized(), Vector3(0.2, 0.3, -1))
 
-	# Stars
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	var star := SphereMesh.new()
-	star.radius = 0.05
-	star.height = 0.1
-	star.radial_segments = 4
-	star.rings = 2
-	mm.mesh = star
-	mm.instance_count = 500
-	for i in 500:
-		var dir := Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 0.2)).normalized()
-		mm.set_instance_transform(i, Transform3D(Basis(), dir * randf_range(40, 60)))
-	var mmi := MultiMeshInstance3D.new()
-	mmi.multimesh = mm
-	mmi.material_override = PartModels.mat(Color(1, 1, 1), 0.0, 0.5, 4.0)
-	add_child(mmi)
+	# The sun rising over the edge, a little left of centre (just right of the menu).
+	var ray := _limb_ray(centre, 637.1 * 1.03, -0.02)
+	var sun_pos := ray * 2400.0 + Vector3(0, 28, 0)
+	_billboard(sun_pos, 5200.0, Color(1.0, 0.45, 0.15), 0.35)
+	_glow = _billboard(sun_pos, 1500.0, Color(1.0, 0.6, 0.25), 2.6)
+	_billboard(sun_pos, 5200.0, Color(1.0, 0.5, 0.2), 0.7, 0.05)
+
+	var sun := DirectionalLight3D.new()
+	sun.light_color = Color(1.0, 0.68, 0.4)
+	sun.light_energy = 2.4
+	add_child(sun)
+	var to_scene := -(ray + Vector3(0, 0.15, 0)).normalized()
+	to_scene.z = -to_scene.z * 0.6     # come partly from our side so the near surface glows
+	sun.look_at_from_position(Vector3.ZERO, to_scene.normalized(), Vector3.UP)
+	var fill := DirectionalLight3D.new()
+	fill.light_color = Color(0.45, 0.6, 1.0)
+	fill.light_energy = 0.25
+	add_child(fill)
+	fill.look_at_from_position(Vector3.ZERO, Vector3(-0.6, -0.3, -1.0), Vector3.UP)
+
+	# A neighbouring planet, cut off by the top-right corner.
+	_moon = ModelLib.fit("moon", 600.0, "center")
+	if _moon == null:
+		var pm := PartModels.mat(Color(0.05, 0.2, 0.4), 0.0, 0.8)
+		_moon = PartModels.ball(300.0, pm)
+	_moon.position = Vector3(640, 470, -820)
+	add_child(_moon)
+
+	_astro = ModelLib.fit("ex_astronaut", 2.4, "center")
+	if _astro:
+		_astro.position = ASTRO_POS
+		_astro.rotation_degrees = Vector3(25, -30, -35)
+		add_child(_astro)
+	for spec in [["sc_landsat8", 4.0, Vector3(9.5, 1.2, -21)], ["cubesat", 0.9, Vector3(6.4, -0.6, -12)], ["cubesat", 0.7, Vector3(11.5, 2.0, -24)]]:
+		var s := ModelLib.fit(spec[0], spec[1], "center")
+		if s:
+			s.position = spec[2]
+			s.rotation_degrees = Vector3(randf_range(-20, 20), randf_range(0, 360), randf_range(-20, 20))
+			add_child(s)
+			_sats.append([s, spec[2]])
 
 	_cam = Camera3D.new()
-	_cam.position = Vector3(0, 0.5, 10)
+	_cam.fov = 60
+	_cam.far = 5000
 	_cam.current = true
 	add_child(_cam)
 
+## Direction from the camera that just grazes the planet's edge, at horizontal angle az (radians).
+func _limb_ray(c: Vector3, r: float, az: float) -> Vector3:
+	var lo := -1.2
+	var hi := 1.2
+	for i in 40:
+		var el := (lo + hi) * 0.5
+		var d := Vector3(sin(az) * cos(el), sin(el), -cos(az) * cos(el))
+		var t := c.dot(d)
+		var hit := t > 0.0 and (c - d * t).length() < r
+		if hit:
+			lo = el
+		else:
+			hi = el
+	var e := hi
+	return Vector3(sin(az) * cos(e), sin(e), -cos(az) * cos(e)).normalized()
+
+func _billboard(pos: Vector3, size: float, color: Color, energy: float, squash := 1.0) -> MeshInstance3D:
+	var q := QuadMesh.new()
+	q.size = Vector2(size, size * squash)
+	var m := ShaderMaterial.new()
+	var sh := Shader.new()
+	sh.code = """shader_type spatial;
+render_mode unshaded, blend_add, depth_draw_never, cull_disabled;
+uniform vec4 tint : source_color;
+uniform float energy = 1.0;
+void vertex() {
+	MODELVIEW_MATRIX = VIEW_MATRIX * mat4(INV_VIEW_MATRIX[0], INV_VIEW_MATRIX[1], INV_VIEW_MATRIX[2], MODEL_MATRIX[3]);
+	MODELVIEW_MATRIX = MODELVIEW_MATRIX * mat4(vec4(length(MODEL_MATRIX[0].xyz),0,0,0), vec4(0,length(MODEL_MATRIX[1].xyz),0,0), vec4(0,0,length(MODEL_MATRIX[2].xyz),0), vec4(0,0,0,1));
+}
+void fragment() {
+	float d = length(UV - vec2(0.5)) * 2.0;
+	float a = pow(clamp(1.0 - d, 0.0, 1.0), 2.6) + 0.6 * pow(clamp(1.0 - d * 3.0, 0.0, 1.0), 2.0);
+	ALBEDO = tint.rgb * energy * a;
+	ALPHA = a;
+}"""
+	m.shader = sh
+	m.set_shader_parameter("tint", color)
+	m.set_shader_parameter("energy", energy)
+	var mi := MeshInstance3D.new()
+	mi.mesh = q
+	mi.material_override = m
+	mi.position = pos
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mi)
+	return mi
+
 func _process(delta: float) -> void:
 	_t += delta
-	_earth.rotate_y(delta * 0.08)
-	if _globe:
-		_globe.rotate_y(delta * 0.08)
-	if _moon:
-		_moon.rotate_y(delta * 0.05)
-	if _sat:
-		var a := _t * 0.25
-		_sat.position = Vector3(2.5 + cos(a) * 4.0, -0.5 + sin(a) * 1.2, sin(a) * 4.0)
-		_sat.rotate_y(delta * 0.6)
-	_cam.position = Vector3(sin(_t * 0.05) * 1.5, 0.5 + sin(_t * 0.07) * 0.4, 10)
-	_cam.look_at(Vector3(0.5, 0, 0), Vector3.UP)
+	if _earth and _earth.spin:
+		_earth.spin.rotate_object_local(Vector3.UP, delta * 0.004)
+	if _astro:
+		_astro.position = ASTRO_POS + Vector3(sin(_t * 0.11) * 0.25, sin(_t * 0.23) * 0.18, 0)
+		_astro.rotate_object_local(Vector3(0.3, 1, 0.2).normalized(), delta * 0.05)
+	for i in _sats.size():
+		var s: Node3D = _sats[i][0]
+		var base: Vector3 = _sats[i][1]
+		s.position = base + Vector3(-fmod(_t * (0.12 + i * 0.05), 6.0) + 3.0, sin(_t * 0.3 + i) * 0.15, 0) * (1.0 if i == 0 else 0.6)
+		s.rotate_y(delta * (0.08 + i * 0.05))
+	_moon.rotate_y(delta * 0.01)
+	_glow.scale = Vector3.ONE * (1.0 + sin(_t * 0.8) * 0.03)
+	_cam.position = Vector3(sin(_t * 0.04) * 0.4, sin(_t * 0.06) * 0.2, 0)
+	_cam.look_at(_cam.position + Vector3(0.0, 0.0, -1.0), Vector3.UP)
 
-# ---------------------------------------------------------------- menus
-func _show(panel: Control) -> void:
-	for p in [_menu, _select, _help, _brief]:
-		p.visible = (p == panel)
+# ---------------------------------------------------------------- building blocks
+func _show(page: Control) -> void:
+	for p in [_menu, _options, _brief]:
+		p.visible = (p == page)
+	_logo.visible = page != _brief
 
 func _full() -> Control:
 	var c := Control.new()
 	c.set_anchors_preset(Control.PRESET_FULL_RECT)
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return c
 
+func _vignette() -> Control:
+	var r := TextureRect.new()
+	r.set_anchors_preset(Control.PRESET_FULL_RECT)
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var g := Gradient.new()
+	g.set_color(0, Color(0, 0, 0, 0.55))
+	g.set_color(1, Color(0, 0, 0, 0.0))
+	var gt := GradientTexture2D.new()
+	gt.gradient = g
+	gt.fill_from = Vector2(0, 0.5)
+	gt.fill_to = Vector2(0.6, 0.5)
+	r.texture = gt
+	r.stretch_mode = TextureRect.STRETCH_SCALE
+	return r
+
+func _text(s: String, size: int, color: Color, kind := "sans_semi", spacing := 0) -> Label:
+	var l := FUI.t(s, size, color, kind)
+	if spacing != 0:
+		var f := FontVariation.new()
+		f.base_font = l.get_theme_font("font")
+		f.spacing_glyph = spacing
+		l.add_theme_font_override("font", f)
+	l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.6))
+	l.add_theme_constant_override("shadow_offset_y", 2)
+	return l
+
+func _build_logo() -> Control:
+	var l := _text("H.Y.A.D.E.S", 80, Color.WHITE, "sans_semi", 12)
+	l.position = Vector2(84, 80)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return l
+
+func _footer() -> Control:
+	var l := _text("Built with NASA resources: mission segments, Mission Design Lab, GMAT, CubeSat 101", 13, Color(1, 1, 1, 0.45), "sans")
+	l.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	l.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	l.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	l.position -= Vector2(24, 18)
+	return l
+
+func _panel(pos: Vector2, width: float) -> VBoxContainer:
+	var p := PanelContainer.new()
+	var st := StyleBoxFlat.new()
+	st.bg_color = PANEL_BG
+	st.border_color = Color(COPPER, 0.7)
+	st.set_border_width_all(1)
+	st.border_width_left = 5
+	st.set_content_margin_all(20)
+	st.corner_radius_top_right = 14
+	p.add_theme_stylebox_override("panel", st)
+	p.position = pos
+	p.custom_minimum_size = Vector2(width, 0)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 7)
+	p.add_child(v)
+	return v
+
+# ---------------------------------------------------------------- main menu
 func _build_menu() -> Control:
 	var root := _full()
-	var shade := ColorRect.new()
-	shade.color = Color(0.01, 0.02, 0.05, 0.34)
-	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
-	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(shade)
-
-	var panel := UI.panel(Color(0.035, 0.055, 0.11, 0.94))
-	panel.position = Vector2(58, 64)
-	panel.custom_minimum_size = Vector2(500, 590)
-	panel.add_theme_stylebox_override("panel", UI.panel_style(Color(0.035, 0.055, 0.11, 0.94), UI.COLOR_ACCENT, 1))
-	root.add_child(panel)
-
-	var v := UI.vbox(12)
-	panel.add_child(v)
-	v.add_child(UI.label("HYADES // MISSION SYSTEMS", 14, UI.COLOR_WARN))
-	v.add_child(UI.label("PROJECT HYADES", 46, UI.COLOR_ACCENT))
-	v.add_child(UI.label("MISSION CONTROL", 28, Color.WHITE))
-	v.add_child(UI.label("DESIGN. LAUNCH. DISCOVER.", 15, UI.COLOR_MUTED))
-	var divider := HSeparator.new()
-	divider.modulate = Color(0.3, 0.65, 1.0, 0.45)
-	v.add_child(divider)
-	var intro := UI.label("Lead a complete Earth-observation mission, from spacecraft design to actionable data.", 18, Color(0.86, 0.89, 0.96))
-	intro.custom_minimum_size = Vector2(0, 58)
-	v.add_child(intro)
-	var gap := Control.new()
-	gap.custom_minimum_size = Vector2(0, 14)
-	v.add_child(gap)
-	var start := UI.button("START GAME", 24)
-	start.custom_minimum_size = Vector2(420, 58)
-	start.pressed.connect(func(): _show(_select))
-	v.add_child(start)
-	var help := UI.button("HOW TO PLAY", 20)
-	help.custom_minimum_size = Vector2(420, 48)
-	help.pressed.connect(func(): _show(_help))
-	v.add_child(help)
-	var quit := UI.button("QUIT", 20)
-	quit.custom_minimum_size = Vector2(420, 48)
-	quit.pressed.connect(func(): get_tree().quit())
-	v.add_child(quit)
-	var footer := UI.label("FLIGHT DIRECTOR CONSOLE  ·  SYSTEMS NOMINAL\nNASA SPACE APPS CHALLENGE  ·  v1.0", 12, UI.COLOR_MUTED)
-	footer.custom_minimum_size = Vector2(0, 42)
-	v.add_child(footer)
-
-	var telemetry := UI.panel(Color(0.025, 0.045, 0.09, 0.8))
-	telemetry.position = Vector2(930, 565)
-	telemetry.custom_minimum_size = Vector2(290, 92)
-	telemetry.add_theme_stylebox_override("panel", UI.panel_style(Color(0.025, 0.045, 0.09, 0.8), Color(0.3, 0.65, 1.0, 0.5), 1))
-	root.add_child(telemetry)
-	var tv := UI.vbox(4)
-	telemetry.add_child(tv)
-	tv.add_child(UI.label("LIVE MISSION FEED", 12, UI.COLOR_ACCENT))
-	tv.add_child(UI.label("ORBITAL NETWORK  //  ONLINE", 13, UI.COLOR_GOOD))
-	tv.add_child(UI.label("EARTH OBSERVATION  //  STANDBY", 12, UI.COLOR_MUTED))
-	return root
-
-func _build_help() -> Control:
-	var root := _full()
-	var p := UI.panel(Color(0.06, 0.08, 0.14, 0.92))
-	p.position = Vector2(70, 80)
-	p.custom_minimum_size = Vector2(700, 0)
-	root.add_child(p)
-	var v := UI.vbox(10)
-	p.add_child(v)
-	v.add_child(UI.label("HOW TO PLAY", 30, UI.COLOR_ACCENT))
-	for line in [
-		"1. Start the Flood & Crop Watch mission. Pick 'With tutor' the first time: a mission engineer guides you step by step.",
-		"2. Read the Briefing screen: your objective and the requirements you must meet.",
-		"3. Walk to the shelves (WASD + mouse). Look at a part to read its specs, press E to install it on your spacecraft.",
-		"4. Watch the Resources and Advisors screens: every part costs mass, power and money.",
-		"5. At the Mission Console pick orbit (or trajectory) and rocket, then press LAUNCH.",
-		"6. Watch your mission fly in Mission Control and read the report: it explains why it worked or failed.",
-		"7. Improve the design and launch again. Esc opens the menu."]:
-		v.add_child(UI.label(line, 18))
-	var back := UI.button("BACK", 20)
-	back.pressed.connect(func(): _show(_menu))
-	v.add_child(back)
-	return root
-
-func _build_select() -> Control:
-	var root := _full()
-	var v := UI.vbox(16)
-	v.set_anchors_preset(Control.PRESET_FULL_RECT)
-	v.offset_left = 50
-	v.offset_right = -50
-	v.offset_top = 40
-	v.offset_bottom = -40
+	var v := VBoxContainer.new()
+	v.position = Vector2(84, 250)
+	v.add_theme_constant_override("separation", 12)
 	root.add_child(v)
-	v.add_child(UI.label("YOUR MISSION", 38, UI.COLOR_ACCENT))
-	var row := UI.hbox(18)
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+
+	var newb := MenuButtonBar.new("NEW GAME")
+	newb.pressed.connect(_new_game)
+	v.add_child(newb)
+
+	var save := SaveGame.progress()
+	var cont := MenuButtonBar.new("CONTINUE")
+	cont.disabled = save.is_empty()
+	cont.pressed.connect(_continue)
+	v.add_child(cont)
+	if not save.is_empty():
+		var lv: Dictionary = LevelFlow.LEVELS[clampi(int(save["index"]), 0, LevelFlow.LEVELS.size() - 1)]
+		var hint := _text("      Level %d  ·  %s" % [lv["n"], lv["title"].capitalize()], 14, Color(CREAM, 0.7), "sans_med")
+		v.add_child(hint)
+
+	var opt := MenuButtonBar.new("OPTIONS")
+	opt.pressed.connect(func(): _show(_options))
+	v.add_child(opt)
+
+	var ex := MenuButtonBar.new("EXIT")
+	ex.pressed.connect(func(): get_tree().quit())
+	v.add_child(ex)
+	newb.call_deferred("grab_focus")
+	return root
+
+func _new_game() -> void:
+	MissionState.start_mission("flood_watch")
+	MissionState.tutor_enabled = SaveGame.tutor
+	MissionState.tutor_steps = {}
+	if SaveGame.play_intro:
+		get_tree().change_scene_to_file("res://scenes/Intro.tscn")
+	else:
+		_show(_brief)
+
+func _continue() -> void:
+	var i := SaveGame.restore()
+	if i >= 0:
+		LevelFlow.resume(i)
+
+# ---------------------------------------------------------------- options
+func _toggle(v: VBoxContainer, label: String, value: bool, on_change: Callable) -> void:
+	var c := CheckButton.new()
+	c.text = label
+	c.button_pressed = value
+	c.add_theme_font_override("font", FUI.font("Inter-Medium"))
+	c.add_theme_font_size_override("font_size", 18)
+	c.add_theme_color_override("font_color", CREAM)
+	c.add_theme_color_override("font_hover_color", Color.WHITE)
+	c.add_theme_color_override("font_pressed_color", CREAM)
+	c.toggled.connect(on_change)
+	v.add_child(c)
+
+func _slider(v: VBoxContainer, label: String, lo: float, hi: float, step: float, value: float, on_change: Callable) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 14)
+	var l := _text(label, 18, CREAM, "sans_med")
+	l.custom_minimum_size = Vector2(190, 0)
+	row.add_child(l)
+	var sl := HSlider.new()
+	sl.min_value = lo
+	sl.max_value = hi
+	sl.step = step
+	sl.value = value
+	sl.custom_minimum_size = Vector2(260, 24)
+	sl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	sl.value_changed.connect(on_change)
+	row.add_child(sl)
 	v.add_child(row)
-	for id in GameData.MISSION_ORDER:
-		var c := _card(id)
-		if GameData.MISSION_ORDER.size() == 1:
-			c.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-			c.custom_minimum_size = Vector2(620, 0)
-		row.add_child(c)
-	var back := UI.button("BACK", 20)
-	back.custom_minimum_size = Vector2(160, 44)
-	back.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+
+func _build_options() -> Control:
+	var root := _full()
+	var v := _panel(Vector2(84, 205), 640)
+	root.add_child(v.get_parent())
+	v.add_child(_text("OPTIONS", 28, COPPER, "sans_semi", 4))
+	_toggle(v, "Mission Tutor (guides you step by step)", SaveGame.tutor, func(on): SaveGame.tutor = on; SaveGame.save_settings())
+	_toggle(v, "Play the story intro on New Game", SaveGame.play_intro, func(on): SaveGame.play_intro = on; SaveGame.save_settings())
+	_toggle(v, "Fullscreen", SaveGame.fullscreen, func(on): SaveGame.fullscreen = on; SaveGame.save_settings())
+	_slider(v, "Music volume", 0.0, 1.0, 0.05, SaveGame.music_volume, func(x): SaveGame.music_volume = x; AudioManager.set_music_volume(x); SaveGame.save_settings())
+	_slider(v, "Mouse look speed", 0.4, 2.0, 0.1, SaveGame.mouse_sens, func(x): SaveGame.mouse_sens = x; SaveGame.save_settings())
+	v.add_child(_text("HOW TO PLAY", 18, COPPER, "sans_semi", 3))
+	for line in [
+		"WASD to walk, mouse to look, E to use a screen or pick up a part. Esc opens the menu.",
+		"Level 1: choose the satellite's parts, orbit and rocket, then launch.",
+		"Level 2: from orbit, scan the farming regions that are in view and not under cloud.",
+		"Level 3: at the ground station, choose what comes down first and run the pass.",
+		"Level 4: mark the flooded farm plots and send the right report in time.",
+		"Every choice carries forward: a weak design shows up as missing data later."]:
+		var l := _text(line, 14, Color(CREAM, 0.85), "sans")
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.custom_minimum_size = Vector2(580, 0)
+		v.add_child(l)
+	var back := MenuButtonBar.new("BACK", Vector2(220, 42))
 	back.pressed.connect(func(): _show(_menu))
 	v.add_child(back)
 	return root
-
-func _card(id: String) -> Control:
-	var m: Dictionary = GameData.MISSIONS[id]
-	var accent: Color = m["env"]["accent"]
-	var p := PanelContainer.new()
-	p.add_theme_stylebox_override("panel", UI.panel_style(Color(0.06, 0.08, 0.14, 0.92), accent, 2))
-	p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var v := UI.vbox(10)
-	p.add_child(v)
-	v.add_child(UI.label(m["difficulty"].to_upper(), 16, accent))
-	v.add_child(UI.label(m["name"], 26))
-	v.add_child(UI.label(m["spacecraft_class"] + "  -  " + m["env"]["title"].capitalize(), 15, UI.COLOR_MUTED))
-	v.add_child(UI.label(m["objective"], 17))
-	var ch := UI.label(m["challenge"], 16, UI.COLOR_WARN)
-	ch.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	v.add_child(ch)
-	v.add_child(UI.label("Budget $%s M   Mass limit %s kg" % [str(m["budget"]), str(m["mass_limit"])], 14, UI.COLOR_MUTED))
-	var best: int = MissionState.best_scores.get(id, 0)
-	if best > 0:
-		v.add_child(UI.label("Your best: %d / 1000" % best, 15, UI.COLOR_GOOD))
-	var bt := UI.button("START WITH TUTOR (recommended)", 20)
-	bt.pressed.connect(func(): _start(id, true))
-	v.add_child(bt)
-	var b := UI.button("START WITHOUT TUTOR", 18)
-	b.pressed.connect(func(): _start(id, false))
-	v.add_child(b)
-	return p
-
-func _start(id: String, tutor: bool) -> void:
-	MissionState.start_mission(id)
-	MissionState.tutor_enabled = tutor
-	MissionState.tutor_steps = {}
-	_show(_brief)
 
 # ---------------------------------------------------------------- mission briefing
 func _build_briefing() -> Control:
 	var root := _full()
 	var p := PanelContainer.new()
-	p.add_theme_stylebox_override("panel", FUI.box(Color(0.03, 0.06, 0.12, 0.93), Color(FUI.SKY, 0.4), 12, 22))
+	var st := StyleBoxFlat.new()
+	st.bg_color = PANEL_BG
+	st.border_color = Color(COPPER, 0.7)
+	st.set_border_width_all(1)
+	st.border_width_left = 5
+	st.set_content_margin_all(24)
+	st.corner_radius_top_right = 14
+	p.add_theme_stylebox_override("panel", st)
 	p.set_anchors_preset(Control.PRESET_FULL_RECT)
 	p.offset_left = 50
 	p.offset_right = -50
@@ -273,25 +373,25 @@ func _build_briefing() -> Control:
 	root.add_child(p)
 	var v := FUI.vb(10)
 	p.add_child(v)
-	v.add_child(FUI.t("MISSION BRIEFING · YOU ARE THE MISSION DIRECTOR", 14, FUI.SKY, "mono_semi"))
-	v.add_child(FUI.t("Flood & Crop Watch", 40, FUI.WHITE, "sans_semi"))
+	v.add_child(_text("MISSION BRIEFING  ·  YOU ARE THE MISSION DIRECTOR", 14, COPPER, "mono_semi"))
+	v.add_child(_text("Flood & Crop Watch", 40, Color.WHITE, "sans_semi"))
 	for line in [
 		"Farmers need timely information about crop health, and floods can wipe out a season of crops in days.",
 		"Satellites can watch the fields from space, but your mission has limited money, mass and power.",
 		"Your job: design and operate a satellite mission that collects useful imagery of farmland, detects flooded areas and gets actionable information to farmers and agricultural scientists."]:
-		var l := FUI.t(line, 18, FUI.TEXT2)
+		var l := _text(line, 18, CREAM, "sans")
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		v.add_child(l)
 	var m := GameData.mission("flood_watch")
-	v.add_child(FUI.t("Budget $%s M  ·  Mass limit %s kg  ·  Every decision affects the next level" % [str(m["budget"]), str(m["mass_limit"])], 15, FUI.AMBER, "mono_semi"))
+	v.add_child(_text("Budget $%s M  ·  Mass limit %s kg  ·  Every decision affects the next level" % [str(m["budget"]), str(m["mass_limit"])], 15, FUI.AMBER, "mono_semi"))
 	var row := FUI.hb(12)
 	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_child(row)
-	var colors := [FUI.RED, FUI.SKY, FUI.GREEN, FUI.AMBER]
+	var colors := [Color(1.0, 0.45, 0.3), FUI.SKY, FUI.GREEN, FUI.AMBER]
 	for i in LevelFlow.LEVELS.size():
 		var lv: Dictionary = LevelFlow.LEVELS[i]
 		var c := PanelContainer.new()
-		c.add_theme_stylebox_override("panel", FUI.box(FUI.CARD, Color(colors[i], 0.5), 10, 14))
+		c.add_theme_stylebox_override("panel", FUI.box(Color(0.1, 0.06, 0.04, 0.9), Color(colors[i], 0.5), 10, 14))
 		c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var cv := FUI.vb(6)
 		c.add_child(cv)
@@ -302,16 +402,22 @@ func _build_briefing() -> Control:
 		intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		cv.add_child(intro)
 		row.add_child(c)
-	var lesson := FUI.t("A spacecraft can reach orbit and still fail: without enough power, radio capacity, storage or ground stations, the data never helps anyone.", 15, FUI.MUTED)
+	var lesson := _text("A spacecraft can reach orbit and still fail: without enough power, radio capacity, storage or ground stations, the data never helps anyone.", 15, Color(CREAM, 0.6), "sans")
 	lesson.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(lesson)
-	var btns := FUI.hb(12)
-	var go := UI.button("BEGIN LEVEL 1 · LAUNCH SEGMENT", 22)
-	go.custom_minimum_size = Vector2(420, 52)
+	var btns := FUI.hb(16)
+	var go := MenuButtonBar.new("BEGIN LEVEL 1", Vector2(320, 48))
 	go.pressed.connect(LevelFlow.start)
 	btns.add_child(go)
-	var back := UI.button("BACK", 18)
-	back.pressed.connect(func(): _show(_select))
+	var tut := CheckButton.new()
+	tut.text = "Mission Tutor"
+	tut.button_pressed = SaveGame.tutor
+	tut.add_theme_font_size_override("font_size", 17)
+	tut.add_theme_color_override("font_color", CREAM)
+	tut.toggled.connect(func(on): MissionState.tutor_enabled = on; MissionState.tutor_steps = {})
+	btns.add_child(tut)
+	var back := MenuButtonBar.new("BACK", Vector2(180, 48))
+	back.pressed.connect(func(): _show(_menu))
 	btns.add_child(back)
 	v.add_child(btns)
 	return root

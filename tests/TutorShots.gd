@@ -11,7 +11,7 @@ func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute("/tmp/tshots")
 	var title = load("res://scenes/Main.tscn").instantiate()
 	add_child(title)
-	title._show(title._select)
+	title._show(title._options)
 	await _shot("0_select", 30)
 	title.queue_free()
 	MissionState.start_mission("flood_watch")

@@ -1,15 +1,16 @@
 extends CanvasLayer
 ## MISSION TUTOR: the communications console fixed at the BOTTOM of the screen, in every level.
-## Pure UI: it shows lines of dialogue with a typing animation, a Next and a Skip button,
-## a stage indicator and the current task. What to say is decided by TutorDialogueManager.
-##   Enter / Next  : finish typing, or go to the next line
-##   Backspace / Skip : skip the rest of a long explanation
+## Pure UI: ONE short message at a time, typed out, with **key words** and numbers highlighted,
+## a Next button (when there is more to say) and a Got it button (dismiss what you already understand).
+## What to say is decided by TutorDialogueManager; the current task lives in the Mission Instructions panel.
+##   Enter / Next     : finish typing, or go to the next message
+##   Backspace / Got it : dismiss this explanation
 ##   T             : collapse / expand the console
 
 signal next_pressed
 signal skip_pressed
 
-const HEIGHT := 128.0
+const HEIGHT := 104.0
 const COLLAPSED := 34.0
 const CHARS_PER_SEC := 70.0
 
@@ -17,7 +18,7 @@ var _panel: PanelContainer
 var _avatar: Control
 var _name: Label
 var _stage: Label
-var _text: Label
+var _text: RichTextLabel
 var _todo: Label
 var _next: Button
 var _skip: Button
@@ -49,7 +50,7 @@ func _ready() -> void:
 	_panel.add_child(row)
 	_body = row
 	_avatar = _Avatar.new()
-	_avatar.custom_minimum_size = Vector2(76, 76)
+	_avatar.custom_minimum_size = Vector2(64, 64)
 	_avatar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(_avatar)
 
@@ -67,12 +68,20 @@ func _ready() -> void:
 	chip.add_child(_stage)
 	head.add_child(chip)
 	head.add_child(FUI.grow())
-	_keys = FUI.t("WASD move · mouse look · E use · T hide tutor · Esc menu", 10, FUI.DIM, "mono")
+	_keys = FUI.t("T hide tutor  ·  O instructions  ·  I resources  ·  Esc menu", 10, FUI.DIM, "mono")
 	head.add_child(_keys)
 	mid.add_child(head)
-	_text = FUI.t("", 17, FUI.WHITE, "sans_med")
+	_text = RichTextLabel.new()
+	_text.bbcode_enabled = true
+	_text.fit_content = true
+	_text.scroll_active = false
 	_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_text.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_text.add_theme_font_override("normal_font", FUI.font("Inter-Medium"))
+	_text.add_theme_font_override("bold_font", FUI.font("Inter-SemiBold"))
+	_text.add_theme_font_size_override("normal_font_size", 19)
+	_text.add_theme_font_size_override("bold_font_size", 19)
+	_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	mid.add_child(_text)
 	_todo = FUI.t("", 14, FUI.GREEN, "sans_semi")
 	mid.add_child(_todo)
@@ -82,7 +91,7 @@ func _ready() -> void:
 	_next = _btn("NEXT  ⏎", FUI.AMBER)
 	_next.pressed.connect(func(): next_pressed.emit())
 	btns.add_child(_next)
-	_skip = _btn("SKIP  ⌫", FUI.MUTED)
+	_skip = _btn("GOT IT  ✕", FUI.MUTED)
 	_skip.pressed.connect(func(): skip_pressed.emit())
 	btns.add_child(_skip)
 	row.add_child(btns)
@@ -108,28 +117,38 @@ func _btn(text: String, c: Color) -> Button:
 ## Show one line. kind: "step" (guided task), "reaction" (responds to a decision), "alert" (a problem).
 func show_line(text: String, stage: String, todo: String = "", can_next := true, can_skip := false, kind := "step") -> void:
 	_kind = kind
-	_text.text = text
+	_text.text = highlight(text)
 	_text.visible_ratio = 0.0
 	_typing = 0.0
 	_stage.text = stage
-	_todo.text = ("▶ " + todo) if todo != "" else ""
-	_todo.visible = todo != ""
+	_todo.text = ""
+	_todo.visible = false
 	_next.visible = can_next
 	_skip.visible = can_skip
-	var col: Color = {"step": FUI.WHITE, "reaction": Color("#bae6fd"), "alert": Color("#fca5a5"), "good": Color("#a7f3d0")}.get(kind, FUI.WHITE)
-	_text.add_theme_color_override("font_color", col)
-	var border: Color = {"alert": FUI.RED, "good": FUI.GREEN, "reaction": FUI.SKY}.get(kind, FUI.AMBER)
+	var col: Color = {"step": FUI.WHITE, "reaction": FUI.WHITE, "alert": Color("#fecaca"), "good": Color("#d1fae5")}.get(kind, FUI.WHITE)
+	_text.add_theme_color_override("default_color", col)
+	var border: Color = {"alert": FUI.AMBER, "good": FUI.GREEN, "reaction": FUI.SKY}.get(kind, FUI.SKY)
 	(_panel.get_theme_stylebox("panel") as StyleBoxFlat).border_color = Color(border, 0.6)
 	_name.add_theme_color_override("font_color", border)
 	(_avatar as _Avatar).tint = border
 	_mini.text = "MISSION TUTOR · %s · press T to open" % stage
 	_avatar.queue_redraw()
 
+## **words** -> cyan bold; numbers with their units ($2.5M, 6 GB, 85%, 3 days) -> amber.
+static func highlight(text: String) -> String:
+	var t := text.replace("[", "(").replace("]", ")")
+	var num := RegEx.create_from_string("(?<![\\w.])(\\$?\\d+(?:[.,]\\d+)?\\s?(?:M|GB|kg|%|W|Wh|days?|minutes?|min|km|Mbps|years?)?)(?![\\w])")
+	t = num.sub(t, "[color=#fbbf24][b]$1[/b][/color]", true)
+	var bold := RegEx.create_from_string("\\*\\*(.+?)\\*\\*")
+	t = bold.sub(t, "[color=#38bdf8][b]$1[/b][/color]", true)
+	return t
+
 func is_typing() -> bool:
 	return _text.visible_ratio < 1.0
 
 func finish_typing() -> void:
 	_text.visible_ratio = 1.0
+	_typing = 1e9
 
 func set_collapsed(c: bool) -> void:
 	_collapsed = c
@@ -148,9 +167,10 @@ func used_height() -> float:
 	return (COLLAPSED if _collapsed else HEIGHT) + 16.0
 
 func _process(delta: float) -> void:
-	if _text.visible_ratio < 1.0 and _text.text.length() > 0:
+	var n := _text.get_total_character_count()
+	if _text.visible_ratio < 1.0 and n > 0:
 		_typing += delta * CHARS_PER_SEC
-		_text.visible_ratio = clampf(_typing / float(_text.text.length()), 0.0, 1.0)
+		_text.visible_ratio = clampf(_typing / float(n), 0.0, 1.0)
 	_blink += delta
 	(_avatar as _Avatar).talking = is_typing()
 	_avatar.queue_redraw()

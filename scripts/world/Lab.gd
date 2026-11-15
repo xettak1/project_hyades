@@ -100,6 +100,9 @@ func _ready() -> void:
 	add_child(preload("res://scripts/world/DecisionCard.gd").new())
 	add_child(preload("res://scripts/ui/InstrumentationPanel.gd").new())
 	add_child(preload("res://scripts/ui/MissionProgressBar.gd").new())
+	var instr := preload("res://scripts/ui/MissionInstructions.gd").new()
+	instr.room = self
+	add_child(instr)
 	var sv := ScreenView.new()
 	sv.player = player
 	add_child(sv)

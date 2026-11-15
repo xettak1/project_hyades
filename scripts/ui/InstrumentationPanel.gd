@@ -65,13 +65,10 @@ func _row(id: String, icon: String, label: String) -> void:
 func _build_rows() -> void:
 	match level:
 		"launch":
-			_row("budget", "money", "Mission budget")
-			_row("left", "money", "Remaining budget")
+			_row("left", "money", "Budget left")
 			_row("mass", "mass", "Spacecraft mass")
-			_row("payload", "rocket", "Rocket payload used")
-			_row("vehicle", "rocket", "Launch vehicle")
-			_row("insertion", "orbit", "Orbit insertion")
-			_row("ready", "ready", "Readiness")
+			_row("payload", "rocket", "Rocket capacity")
+			_row("ready", "ready", "Launch readiness")
 		"space":
 			_row("battery", "battery", "Battery (lowest in eclipse)")
 			_row("gen", "sun", "Power generation (avg)")
@@ -79,18 +76,16 @@ func _build_rows() -> void:
 			_row("storage", "storage", "Free onboard storage")
 			_row("instrument", "camera", "Instrument")
 			_row("progress", "progress", "Observation progress")
-			_row("orbit", "orbit", "Orbit")
 			_extra = _Subsystems.new()
 			_extra.custom_minimum_size = Vector2(0, 34)
 			_body.add_child(_extra)
 		"ground":
-			_row("station", "station", "Ground station")
-			_row("signal", "signal", "Signal strength")
+			_row("signal", "signal", "Signal")
 			_row("window", "clock", "Contact window")
-			_row("onboard", "storage", "Data onboard")
-			_row("capacity", "down", "Link capacity")
-			_row("received", "down", "Data received")
-			_row("left", "missing", "Still onboard")
+			_row("onboard", "storage", "Onboard data")
+			_row("capacity", "down", "Transmission capacity")
+			_row("received", "down", "Received")
+			_row("left", "missing", "Remaining in space")
 			_extra = _Transfer.new()
 			_extra.custom_minimum_size = Vector2(0, 58)
 			_body.add_child(_extra)
@@ -101,7 +96,6 @@ func _build_rows() -> void:
 			_row("crops", "leaf", "Crop-health observations")
 			_row("missing", "missing", "Missing data")
 			_row("confidence", "ready", "Confidence in analysis")
-			_row("impact", "impact", "Mission impact")
 			_extra = _FarmMap.new()
 			_extra.custom_minimum_size = Vector2(0, 150)
 			_body.add_child(_extra)
@@ -134,13 +128,10 @@ func refresh() -> void:
 		"launch":
 			var budget := float(m["budget"])
 			var left := budget - float(x["cost"])
-			_put("budget", "$%.2fM" % budget)
-			_put("left", "$%.2fM" % left, _lv(a, "budget_used"), left / budget)
+			_put("left", "$%.2fM / $%.0fM" % [left, budget], _lv(a, "budget_used"), left / budget)
 			_put("mass", "%.1f / %s kg" % [x["mass"], str(m["mass_limit"])], _lv(a, "mass_used"), x["mass"] / float(m["mass_limit"]))
 			var cap: float = x["rocket_cap"]
 			_put("payload", ("%.1f / %.0f kg" % [x["mass"], cap]) if cap > 0.0 else "can't reach orbit", _lv(a, "rocket_used"), x["mass"] / cap if cap > 0.0 else 1.0)
-			_put("vehicle", MissionState.rocket()["name"].split(" (")[0])
-			_put("insertion", (short_orbit() + " ✓") if cap > 0.0 else "can't reach", 0 if cap > 0.0 else 3)
 			var g := MissionState.gate()
 			var near := maxi(maxi(_lv(a, "mass_used"), _lv(a, "budget_used")), _lv(a, "rocket_used"))
 			if not g["hard"].is_empty():
@@ -148,7 +139,7 @@ func refresh() -> void:
 			elif near >= 1:
 				_put("ready", "NEAR LIMIT", 1)
 			elif not g["warn"].is_empty():
-				_put("ready", "READY · %d WARNING%s" % [g["warn"].size(), "S" if g["warn"].size() > 1 else ""], 1)
+				_put("ready", "READY · %d ⚠" % g["warn"].size(), 1)
 			else:
 				_put("ready", "READY", 0)
 		"space":
@@ -164,7 +155,6 @@ func refresh() -> void:
 			_put("instrument", "%s · %s" % [pname, live.get("instrument_state", "STANDBY")], 0 if live.get("instrument_state", "") == "ACTIVE" else -1)
 			var target: float = live.get("target_gb", x["useful_per_day"] * 30.0)
 			_put("progress", "%.1f / %.1f GB" % [live.get("collected_gb", 0.0), target], -1, live.get("collected_gb", 0.0) / maxf(target, 0.001))
-			_put("orbit", short_orbit() + " · OK", 0)
 			_extra.lights = [["POWER", _lv(a, "power_margin")], ["BATTERY", _lv(a, "battery_dod")], ["DATA", _lv(a, "downlink_load")], ["IMAGES", _lv(a, "data_margin")]]
 			_extra.queue_redraw()
 		"ground":
@@ -174,7 +164,6 @@ func refresh() -> void:
 			var capacity: float = live.get("capacity_gb", x["downlink"] * days)
 			var received: float = live.get("received_gb", 0.0)
 			var mbps: float = float(MissionState.part_of("comms").get("mbps", 0.0))
-			_put("station", live.get("station", "Svalbard (1)"))
 			var sig := 0 if mbps >= 20.0 else 1
 			_put("signal", live.get("signal", "Strong" if mbps >= 20.0 else "Fair"), sig, 0.9 if mbps >= 20.0 else 0.5)
 			_put("window", "%d min/day" % int(MissionState.orbit()["contact_min_per_day"]))
@@ -208,7 +197,6 @@ func refresh() -> void:
 			_put("crops", "%d plots" % crops)
 			_put("missing", "%.1f GB · %d plots" % [g2.get("lost_gb", 0.0), plots.size() - seen], 0 if seen == plots.size() else (1 if conf >= 0.5 else 2))
 			_put("confidence", "%d%%" % int(100 * conf), 0 if conf >= 0.8 else (1 if conf >= 0.5 else 2), conf)
-			_put("impact", live.get("impact", "HIGH" if conf >= 0.8 else ("MEDIUM" if conf >= 0.5 else "LOW")), 0 if conf >= 0.8 else (1 if conf >= 0.5 else 2))
 			_extra.plots = plots
 			_extra.queue_redraw()
 	_panel.reset_size()
