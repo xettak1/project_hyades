@@ -11,6 +11,7 @@ var H := 1.1
 var D := 0.32
 var inner_scale := 0.8
 var spin := true
+var _using_cubesat_model := false
 var _frame: Node3D
 var _parts_root: Node3D
 
@@ -34,6 +35,13 @@ func _process(delta: float) -> void:
 		rotate_y(delta * 0.25)
 
 func _build_frame() -> void:
+	if style == "cubesat":
+		var model := ModelLib.fit("cubesat", H, "height")
+		if model:
+			_using_cubesat_model = true
+			model.position.y = -H / 2.0
+			_frame.add_child(model)
+			return
 	var rail := PartModels.alu()
 	var t := 0.035 if style == "cubesat" else 0.06
 	for sx in [-1, 1]:
@@ -83,13 +91,14 @@ func _build_cubesat() -> void:
 	_place("propulsion", Vector3(0, 0.25, 0), Vector3.ZERO, 0.7)
 	_place("payload", Vector3(0, -H / 2, 0), Vector3(180, 0, 0), 0.8)
 	_place("comms", Vector3(0, H / 2, 0), Vector3.ZERO, 0.8)
-	var cells := PartModels.cell_blue()
-	_parts_root.add_child(PartModels.box(Vector3(W - 0.04, H - 0.06, 0.012), cells, Vector3(0, 0, -D / 2 - 0.01)))
-	for sx in [-1, 1]:
-		_parts_root.add_child(PartModels.box(Vector3(0.012, H - 0.06, D - 0.04), cells, Vector3(sx * (W / 2 + 0.01), 0, 0)))
-	if MissionState.picks.get("solar") == "solar_deploy":
+	if not _using_cubesat_model:
+		var cells := PartModels.cell_blue()
+		_parts_root.add_child(PartModels.box(Vector3(W - 0.04, H - 0.06, 0.012), cells, Vector3(0, 0, -D / 2 - 0.01)))
 		for sx in [-1, 1]:
-			_wing(sx, Vector3(sx * (W / 2 + 0.05), 0.1, 0), 3, Vector2(0.45, 0.75))
+			_parts_root.add_child(PartModels.box(Vector3(0.012, H - 0.06, D - 0.04), cells, Vector3(sx * (W / 2 + 0.01), 0, 0)))
+		if MissionState.picks.get("solar") == "solar_deploy":
+			for sx in [-1, 1]:
+				_wing(sx, Vector3(sx * (W / 2 + 0.05), 0.1, 0), 3, Vector2(0.45, 0.75))
 
 func _wing(sx: int, at: Vector3, panels: int, size: Vector2) -> void:
 	var wing := Node3D.new()

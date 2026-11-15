@@ -18,7 +18,6 @@ var _alt := 0.0
 var _vel := 0.0
 
 func start() -> void:
-	AudioManager.play_launch()
 	_sky = lab.outdoor["sky"]
 	_env = lab.outdoor["env"]
 	_sky_top = _sky.sky_top_color
@@ -61,6 +60,7 @@ func _process(delta: float) -> void:
 	if t > 4.5:
 		if _phase == "ignition":
 			_phase = "climb"
+			AudioManager.play_launch()
 			lab.hud.show_message("LIFTOFF!", 2.0, FUI.GREEN)
 			_say("Liftoff! We're on our way. Everything we decided in this room is now flying.")
 		var acc := 4.0 if t < 10.0 else 40.0

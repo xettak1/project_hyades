@@ -1,6 +1,7 @@
 extends Node
 
 const AUDIO_DIR := "res://audio"
+const DEFAULT_MUSIC_VOLUME := 0.35
 
 var _music_player := AudioStreamPlayer.new()
 var _launch_player := AudioStreamPlayer.new()
@@ -12,6 +13,7 @@ func _ready() -> void:
 	add_child(_launch_player)
 	_music_player.finished.connect(_play_random_music)
 	_refresh_audio_files()
+	set_music_volume(DEFAULT_MUSIC_VOLUME)
 	_play_random_music()
 
 func play_launch() -> void:

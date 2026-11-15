@@ -2,6 +2,7 @@ extends RefCounted
 ## Day-by-day mission simulation. Create it, then call step_day() until done.
 
 var x: Dictionary            # extra values from MissionState.compute()
+var snapshot: Dictionary     # the whole compute() result at setup, so results never re-read the live design
 var req: Dictionary
 var planned_days: int
 var life_cap_days: int
@@ -29,7 +30,8 @@ var events: Array = []       # {day, title, text}
 var _event_plan: Array = []  # [day, kind]
 
 func setup(design: Dictionary, requirements: Dictionary, lifetime_years: int, seed_value: int = 0) -> void:
-	x = design["extra"]
+	snapshot = design.duplicate(true)
+	x = snapshot["extra"]
 	req = requirements
 	cruise_days = int(x.get("transfer_days", 0))
 	planned_days = cruise_days + lifetime_years * 365
@@ -154,7 +156,9 @@ func result() -> Dictionary:
 	var target: float = min_data * min_days * 3.0   # full points at 3x the minimum
 	var s_data: float = w["data"] * clampf(useful_total / target, 0.0, 1.0)
 
-	var c := MissionState.compute()
+	# Use the snapshot taken at setup: the score must describe the design that was simulated,
+	# even if the player has changed parts since.
+	var c: Dictionary = snapshot if snapshot.has("mass") else MissionState.compute()
 	var eff := 0.0
 	for key in ["mass", "power", "budget"]:
 		var mg: float = c[key]["margin"]

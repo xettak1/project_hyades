@@ -28,7 +28,7 @@ var MISSIONS := {
 			"wall": Color(0.85, 0.87, 0.9), "floor": Color(0.55, 0.57, 0.6), "accent": Color(0.3, 0.65, 1.0),
 			"light": Color(1, 1, 1), "sat_style": "cubesat", "sat_y": 1.3, "part_scale": 1.0,
 			"table": Color(0.3, 0.32, 0.36), "stripes": false,
-			"orbit_model": "sc_cubesat",
+			"orbit_model": "cubesat",
 			# Exhibits: [model, x, z, height m, yaw, plaque]. z is measured from the front wall (lab) or "mc" for Mission Control.
 			"exhibits": [["ex_astronaut", -6.0, 2.5, 1.8, 30.0, "Spacesuit (EMU)"],
 				["ex_friendship7", 6.0, 2.5, 1.6, -30.0, "Mercury capsule Friendship 7 (1962)"],

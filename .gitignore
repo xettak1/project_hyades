@@ -1,5 +1,4 @@
+# Godot 4+ specific ignores
 .godot/
 *.import
-.export/
-.DS_Store
-!data/**/*.csv.import
+/android/

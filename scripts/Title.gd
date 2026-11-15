@@ -65,7 +65,7 @@ func _build_space() -> void:
 		glb_earth.position = _earth.position
 		add_child(glb_earth)
 		_globe = glb_earth
-	_sat = ModelLib.fit("sc_cubesat", 0.5, "center")
+	_sat = ModelLib.fit("cubesat", 0.5, "center")
 	if _sat:
 		add_child(_sat)
 	_moon = ModelLib.fit("moon", 1.6, "center")
