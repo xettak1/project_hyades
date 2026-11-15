@@ -65,6 +65,18 @@ func set_world(world: Node3D) -> void:
 	viewport.add_child(world)
 	_content = world
 
+## Shows a live camera looking into the main 3D world (e.g. the satellite camera).
+## Optional 2D overlay (labels, scan line) is drawn on top of the picture.
+func set_camera(cam: Camera3D, overlay_panel: Control = null) -> void:
+	clear()
+	viewport.own_world_3d = false
+	viewport.add_child(cam)
+	cam.current = true
+	if overlay_panel:
+		overlay_panel.size = Vector2(viewport.size)
+		viewport.add_child(overlay_panel)
+	_content = cam
+
 ## Adds a 2D panel over whatever is shown (used for the results report).
 func overlay(panel: Control) -> void:
 	var dim := ColorRect.new()

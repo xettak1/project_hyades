@@ -5,7 +5,10 @@ const Simulator := preload("res://scripts/sim/Simulator.gd")
 
 const DESIGNS := {
 	"flood_watch": {
-		"good": {"parts": {"solar": "solar_deploy", "battery": "bat_30", "comms": "radio_x", "adcs": "adcs_precise", "computer": "obc_big"}, "orbit": "sso_550", "rocket": "rideshare_sso", "life": 3},
+		"pointing_sso": {"parts": {"adcs": "fcw_adcs_advanced"}, "orbit": "sso_700", "rocket": "spacex_rideshare", "life": 2},
+		"hyper": {"parts": {"payload": "fcw_payload_advanced", "comms": "fcw_comms_advanced", "adcs": "fcw_adcs_advanced", "solar": "fcw_solar_advanced", "battery": "fcw_battery_advanced"}, "orbit": "sso_700", "rocket": "spacex_rideshare", "life": 3},
+		"all_adv": {"parts": {"payload": "fcw_payload_advanced", "solar": "fcw_solar_advanced", "battery": "fcw_battery_advanced", "comms": "fcw_comms_advanced", "computer": "fcw_computer_advanced", "adcs": "fcw_adcs_advanced", "propulsion": "fcw_propulsion_advanced", "thermal": "fcw_thermal_advanced"}, "orbit": "sso_700", "rocket": "spacex_rideshare", "life": 3},
+		"electron": {"parts": {"adcs": "fcw_adcs_advanced"}, "orbit": "sso_700", "rocket": "rocketlab_electron", "life": 2},
 	},
 	"radar_mapper": {
 		"good": {"parts": {"payload": "sar_large", "solar": "rsolar_wing", "comms": "rradio_x", "computer": "robc_2t"}, "orbit": "sso_700", "rocket": "rideshare_sso_big", "life": 5},

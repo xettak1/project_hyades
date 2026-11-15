@@ -176,6 +176,26 @@ static func build(category: String, id: String) -> Node3D:
 			n.add_child(cyl(0.035, 0.045, 0.12, dark(), Vector3(0, 0.3, 0.12)))
 		"prop_none":
 			n.add_child(box(Vector3(0.3, 0.02, 0.2), mat(Color(0.3, 0.3, 0.33)), Vector3(0, 0.01, 0)))
+		"prop_cold":
+			# Small iodine cold-gas thruster: a tank block with one nozzle
+			n.add_child(box(Vector3(0.16, 0.14, 0.16), alu(), Vector3(0, 0.11, 0)))
+			n.add_child(cyl(0.015, 0.035, 0.05, dark(), Vector3(0, 0.02, 0)))
+		"prop_ion":
+			# Ion thruster: box with a round grid and a gold-wrapped tank
+			n.add_child(box(Vector3(0.2, 0.16, 0.2), gold(), Vector3(0, 0.12, 0)))
+			n.add_child(cyl(0.07, 0.07, 0.03, mat(Color(0.25, 0.25, 0.28), 0.8, 0.3), Vector3(0, 0.12, 0.11), Vector3(90, 0, 0)))
+			n.add_child(cyl(0.05, 0.05, 0.032, mat(Color(0.4, 0.55, 1.0), 0.0, 0.5, 0.8), Vector3(0, 0.12, 0.112), Vector3(90, 0, 0)))
+		"thermal_mli":
+			# Multi-layer insulation blanket (gold foil) folded on a radiator plate
+			n.add_child(box(Vector3(0.34, 0.02, 0.24), mat(Color(0.92, 0.93, 0.95), 0.3, 0.3), Vector3(0, 0.01, 0)))
+			n.add_child(box(Vector3(0.3, 0.05, 0.2), gold(), Vector3(0, 0.045, 0)))
+			n.add_child(box(Vector3(0.28, 0.04, 0.18), gold(), Vector3(0.01, 0.09, 0.005)))
+		"thermal_heater":
+			# Flexible heater strips on a battery-sized block
+			n.add_child(box(Vector3(0.22, 0.12, 0.16), mat(Color(0.2, 0.2, 0.22), 0.4, 0.5), Vector3(0, 0.06, 0)))
+			for i in 4:
+				n.add_child(box(Vector3(0.225, 0.015, 0.03), mat(Color(0.9, 0.4, 0.1), 0.2, 0.5, 0.6), Vector3(0, 0.03 + i * 0.025, 0.07)))
+			n.add_child(cyl(0.006, 0.006, 0.12, copper(), Vector3(0.12, 0.12, 0), Vector3(0, 0, 70)))
 		"prop_small":
 			n.add_child(ball(0.12, alu(), Vector3(0, 0.22, 0)))
 			n.add_child(cyl(0.02, 0.02, 0.08, alu(), Vector3(0, 0.07, 0)))

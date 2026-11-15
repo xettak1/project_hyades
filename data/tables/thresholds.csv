@@ -1,0 +1,12 @@
+id,label,direction,caution,warning,critical,blocks_launch,format,why,fix
+mass_used,Mass used (of the mass limit),max,0.8,0.95,1.0,yes,percent,Real designs keep about 20% mass margin because parts always grow heavier during building.,Downgrade heavy parts: propulsion and the big battery are the heaviest.
+rocket_used,Rocket capacity used,max,0.8,0.95,1.0,yes,percent,A rocket cannot lift more than its capacity to that orbit.,Pick a rocket that reaches this orbit with more capacity.
+budget_used,Budget used,max,0.85,0.95,1.0,yes,percent,Keep a reserve for surprises; going over the budget cancels the mission.,"Cheaper parts, a rideshare rocket or a shorter mission."
+power_margin,Power margin (solar average vs use),min,0.2,0.0,-0.25,no,signed_percent,Below 0% the panels cannot keep up and the payload is switched off part of each day.,"Deployable solar array, or drop power-hungry parts (ion thruster, heaters, FPGA)."
+battery_dod,Battery discharge per eclipse,max,0.3,0.6,0.8,no,percent,Only about 60% of a battery can be used safely each orbit; deeper discharges trigger safe mode and wear it out.,"The bigger battery, or less power used during eclipse."
+downlink_load,Data made vs radio capacity,max,0.8,1.0,2.0,no,percent,Above 100% the radio cannot send everything and images are lost.,A faster radio (X-band) or a less data-hungry payload.
+storage_days,Days of data the memory can hold,min,3,1,0.5,no,days,If a ground pass is missed the data must wait onboard.,More storage (FPGA computer) or less data.
+data_margin,Useful data vs requirement,min,1.2,1.0,0.5,no,percent,Below 100% the data requirement is failed.,"Precision pointing (sharper images), a better payload or a faster radio."
+revisit_ratio,Revisit vs requirement,max,1.0,1.0,2.0,no,percent,Above 100% the area is seen less often than required.,Sun-synchronous orbit.
+life_margin,Orbit life vs planned lifetime,min,1.5,1.0,0.5,no,times,The spacecraft must stay in orbit for the whole planned mission.,"Higher orbit, propulsion or a shorter plan."
+lifetime_req,Planned lifetime vs requirement,min,1.0,1.0,0.5,no,percent,The mission must be planned for at least the required years.,Increase the planned lifetime at the console.

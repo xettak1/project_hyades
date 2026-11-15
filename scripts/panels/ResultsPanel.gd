@@ -24,7 +24,7 @@ func _ready() -> void:
 	var met: Dictionary = r.get("req_met", {})
 	left.add_child(UI.label("REQUIREMENTS", 16, UI.COLOR_ACCENT))
 	left.add_child(_req(met.get("revisit", false), "Revisit every %d days or better" % req["max_revisit_days"]))
-	left.add_child(_req(met.get("data", false), "%.0f GB/day useful (you: %.1f)" % [req["min_data_delivered"], r.get("avg_useful", 0.0)]))
+	left.add_child(_req(met.get("data", false), "%.1f GB/day useful (you: %.2f)" % [req["min_data_delivered"], r.get("avg_useful", 0.0)]))
 	left.add_child(_req(met.get("lifetime", false), "%d year(s) of work (you: %d days)" % [req["min_lifetime"], r.get("days", 0)]))
 	if met.has("resolution"):
 		left.add_child(_req(met["resolution"], "Detail %.1f m or better (you: %.1f m)" % [req["max_resolution_m"], MissionState.compute()["extra"]["resolution"]]))
@@ -42,6 +42,8 @@ func _ready() -> void:
 	if not comp.is_empty():
 		add_child(UI.label("REAL MISSION MOST LIKE YOURS: " + comp["name"], 16, UI.COLOR_ACCENT))
 		add_child(UI.label(comp["text"], 16))
+	if get_tree().get_nodes_in_group("lab").is_empty():
+		return
 	var back := UI.button("Redesign: back to the lab", 18)
 	back.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	back.pressed.connect(func(): get_tree().call_group("lab", "back_to_lab"))

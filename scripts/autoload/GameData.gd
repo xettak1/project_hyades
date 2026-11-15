@@ -8,7 +8,7 @@ extends Node
 # Only Flood & Crop Watch is playable for now. The radar and lunar data below is kept for later.
 const MISSION_ORDER := ["flood_watch"]
 
-const MISSIONS := {
+var MISSIONS := {
 	# ------------------------------------------------------------------ EASY
 	"flood_watch": {
 		"name": "Flood & Crop Watch",
@@ -88,7 +88,7 @@ const MISSIONS := {
 # ---------------------------------------------------------------------- PARTS
 # One dictionary per mission: category -> part id -> stats.
 # "model" picks the 3D model in PartModels (defaults to the part id).
-const PARTS := {
+var PARTS := {
 	"flood_watch": {
 		"payload": {
 			"cam_basic": {"name": "Multispectral camera", "tier": "simple", "mass": 1.0, "power": 4.0, "cost": 0.5, "data": 3.0, "resolution": 10.0,
@@ -229,7 +229,7 @@ const PARTS := {
 
 # ---------------------------------------------------------------------- ORBITS
 # eclipse_min and contact_min_per_day should come from GMAT runs (Data tasks).
-const ORBITS := {
+var ORBITS := {
 	"leo_550": {"name": "Low Earth orbit 550 km (51.6 deg)", "body": "earth", "altitude_km": 550.0, "inclination": 51.6,
 		"period_min": 95.6, "eclipse_min": 36.0, "contact_min_per_day": 30.0, "revisit_days": 5, "life_years": 4,
 		"tooltip": "A common CubeSat orbit. It doesn't fly over every region often, and ground passes are short."},
@@ -254,7 +254,7 @@ const ORBITS := {
 
 # ---------------------------------------------------------------------- ROCKETS
 # cost = base cost + (mass above included_kg) x per_kg. Big launchers are game values.
-const ROCKETS := {
+var ROCKETS := {
 	"rideshare_leo": {"name": "Rideshare to 51.6 deg LEO", "cost": 0.3, "included_kg": 12.0, "per_kg": 0.0,
 		"capacity": {"leo_550": 12.0},
 		"tooltip": "Share a rocket with other satellites. Cheap, but you go where the main passenger goes."},
@@ -281,7 +281,7 @@ const ROCKETS := {
 # Game settings (Data task DA-13 tunes these).
 const USABLE_BATTERY_FRACTION := 0.6
 const G0 := 9.81
-const SCORE_WEIGHTS := {"requirements": 350, "data": 300, "efficiency": 200, "survival": 150}
+var SCORE_WEIGHTS := {"requirements": 350, "data": 300, "efficiency": 200, "survival": 150}
 
 func mission(id: String) -> Dictionary:
 	return MISSIONS.get(id, {})
@@ -296,3 +296,135 @@ func part(category: String, id: String, mission_id: String = "") -> Dictionary:
 	if mission_id == "":
 		mission_id = MissionState.mission_id
 	return parts_for(mission_id).get(category, {}).get(id, {})
+
+
+# ============================================================================ DATA TABLES
+## The data team's tables (data/tables/*.csv, exported from Space_Mission_Data_Tables.xlsx)
+## replace the built-in numbers for Flood & Crop Watch. Edit the CSVs, not this file.
+## Columns follow the data brief. Blank cells mean "this part doesn't have that".
+const TABLES := "res://data/tables/"
+const MISSION_MAP := {"flood_crop_watch": "flood_watch"}   # table id -> game id
+## Which 3D model each table part uses on the shelves.
+const PART_MODELS := {
+	"fcw_payload_simple": "cam_basic", "fcw_payload_advanced": "cam_hd",
+	"fcw_solar_simple": "solar_body", "fcw_solar_advanced": "solar_deploy",
+	"fcw_battery_simple": "bat_10", "fcw_battery_advanced": "bat_30",
+	"fcw_comms_simple": "radio_s", "fcw_comms_advanced": "radio_x",
+	"fcw_computer_simple": "obc_std", "fcw_computer_advanced": "obc_big",
+	"fcw_adcs_simple": "adcs_basic", "fcw_adcs_advanced": "adcs_precise",
+	"fcw_propulsion_simple": "prop_cold", "fcw_propulsion_advanced": "prop_ion",
+	"fcw_thermal_simple": "thermal_mli", "fcw_thermal_advanced": "thermal_heater"}
+const PART_COLUMNS := {"mass_kg": "mass", "power_w": "power", "power_gen_w": "power_gen", "energy_wh": "energy",
+	"cost_musd": "cost", "data_gb_day": "data", "downlink_mbps": "mbps", "storage_gb": "storage",
+	"pointing": "pointing", "life_bonus_years": "life_bonus", "delta_v_ms": "delta_v", "science": "science"}
+var SCORING := {}
+var THRESHOLDS: Array = []  # rows of thresholds.csv: warning levels for every resource check
+var table_sources := {}     # part id -> source text (shown nowhere yet, kept for credits)
+
+func _ready() -> void:
+	load_tables()
+
+static func _read_csv(name: String) -> Array:
+	var path := TABLES + name + ".csv"
+	if not FileAccess.file_exists(path):
+		return []
+	var f := FileAccess.open(path, FileAccess.READ)
+	var head := f.get_csv_line()
+	var rows: Array = []
+	while not f.eof_reached():
+		var line := f.get_csv_line()
+		if line.size() < 2 or (line.size() == 1 and line[0] == ""):
+			continue
+		var d := {}
+		for i in mini(head.size(), line.size()):
+			d[head[i]] = line[i].strip_edges()
+		rows.append(d)
+	return rows
+
+static func _num(v) -> float:
+	return float(str(v)) if str(v).is_valid_float() or str(v).is_valid_int() else 0.0
+
+func load_tables() -> void:
+	var missions := _read_csv("missions")
+	if missions.is_empty():
+		return
+	for r in _read_csv("orbits"):
+		var o: Dictionary = ORBITS.get(r["id"], {}).duplicate()
+		o["name"] = "%s (%s°)" % [r["name"], r["inclination_deg"]]
+		o["body"] = r["central_body"].to_lower()
+		o["altitude_km"] = _num(r["altitude_km"])
+		o["inclination"] = _num(r["inclination_deg"])
+		o["period_min"] = _num(r["period_min"])
+		o["eclipse_min"] = _num(r["eclipse_min"])
+		o["contact_min_per_day"] = _num(r["contact_min_per_day"])
+		o["revisit_days"] = int(_num(r["revisit_days"]))
+		o["life_years"] = _num(r["life_years"])
+		o["hold_dv"] = _num(r["delta_v_ms"])
+		o["tooltip"] = r["tooltip"]
+		if o["body"] != "moon":
+			o.erase("delta_v_insert")
+		ORBITS[r["id"]] = o
+	for r in _read_csv("rockets"):
+		var rk: Dictionary = ROCKETS.get(r["id"], {}).duplicate()
+		rk["name"] = r["name"]
+		rk["cost"] = _num(r["cost_musd"])
+		rk["tooltip"] = r["tooltip"]
+		# Rideshare: $0.35M covers the first 50 kg, then $0.007M per extra kg (Review notes).
+		rk["included_kg"] = 50.0 if r["id"] == "spacex_rideshare" else 1.0e9
+		rk["per_kg"] = 0.007 if r["id"] == "spacex_rideshare" else 0.0
+		rk["capacity"] = {}
+		ROCKETS[r["id"]] = rk
+	for r in _read_csv("rocket_capacity"):
+		if ROCKETS.has(r["rocket_id"]):
+			ROCKETS[r["rocket_id"]]["capacity"][r["orbit_id"]] = _num(r["capacity_kg"])
+	var cards := {}
+	for r in _read_csv("comparison_cards"):
+		cards[r["card_id"]] = r
+	for r in missions:
+		var gid: String = MISSION_MAP.get(r["id"], "")
+		if gid == "" or not MISSIONS.has(gid):
+			continue
+		var m: Dictionary = MISSIONS[gid]
+		m["objective"] = r["objective"]
+		m["budget"] = _num(r["budget_musd"])
+		m["mass_limit"] = _num(r["mass_limit_kg"])
+		m["base_mass"] = _num(r["base_mass_kg"])
+		m["base_cost"] = _num(r["base_cost_musd"])
+		m["ops_cost_per_year"] = _num(r["ops_cost_musd_per_year"])
+		m["orbits"] = Array(r["orbits"].split("|"))
+		m["rockets"] = Array(r["rockets"].split("|"))
+		m["requirements"] = {"max_revisit_days": int(_num(r["max_revisit_days"])),
+			"min_data_delivered": _num(r["min_data_gb_day"]), "min_lifetime": int(_num(r["min_lifetime_years"]))}
+		m["req_text"] = ["See each flood-prone area at least every %d days", "Deliver %.1f GB of useful imagery to Earth per day", "Keep working for at least %d years"]
+		m["challenge"] = "TRADE-OFFS: sharper pointing, more data and better radios all cost power. Make every watt count."
+		var card: Dictionary = cards.get(r["comparison"], {})
+		if not card.is_empty():
+			m["comparison"] = {"name": card["real_mission"], "text": "%s %s %s %s" % [card["fact_1"], card["fact_2"], card["fact_3"], card["why_it_resembles_your_design"]]}
+		# Parts: simple option first in each category (the starting design).
+		var parts := {}
+		for p in _read_csv("parts"):
+			if p["mission_id"] != r["id"]:
+				continue
+			var cat: String = p["category"]
+			if not parts.has(cat):
+				parts[cat] = {}
+			var d := {"name": p["name"], "tier": p["tier"], "tooltip": p["tooltip"], "model": PART_MODELS.get(p["id"], p["id"])}
+			for col in PART_COLUMNS:
+				if p.get(col, "") != "":
+					d[PART_COLUMNS[col]] = _num(p[col])
+			parts[cat][p["id"]] = d
+			table_sources[p["id"]] = p.get("source", "")
+		for cat in parts:
+			var ordered := {}
+			for tier in ["simple", "advanced"]:
+				for id in parts[cat]:
+					if parts[cat][id]["tier"] == tier:
+						ordered[id] = parts[cat][id]
+			parts[cat] = ordered
+		PARTS[gid] = parts
+	THRESHOLDS = _read_csv("thresholds")
+	for r in _read_csv("scoring"):
+		SCORING[r["key"]] = _num(r["value"])
+	if SCORING.has("weight_requirements"):
+		for k in ["requirements", "data", "efficiency", "survival"]:
+			SCORE_WEIGHTS[k] = roundi(1000.0 * SCORING["weight_" + k])

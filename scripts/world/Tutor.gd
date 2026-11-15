@@ -52,6 +52,16 @@ func _ready() -> void:
 	_show_step()
 
 # ======================================================================= steps
+func _x(key: String) -> float:
+	return float(MissionState.compute()["extra"][key])
+
+func _orbit_lines() -> String:
+	var out: Array = []
+	for id in MissionState.mission()["orbits"]:
+		var o: Dictionary = GameData.ORBITS[id]
+		out.append("• %s: revisit every %d days, %d min/day of ground contact, %d min of eclipse per orbit." % [o["name"], o["revisit_days"], int(o["contact_min_per_day"]), int(o["eclipse_min"])])
+	return "\n".join(out)
+
 func _o(key: String):
 	return MissionState.orbit()[key]
 
@@ -68,14 +78,14 @@ func _build_steps() -> void:
 		{"title": "Read your briefing",
 		 "text": "Every space mission starts with requirements: what the spacecraft must achieve. Yours are on the BRIEFING screen on the front wall (follow the yellow arrow).\n\nLook at it and press E to open it in full view.",
 		 "todo": "Open the Briefing screen (E)", "until": "open:Briefing", "target": "Briefing"},
-		{"title": "Your four requirements",
-		 "text": "• Revisit: see the farms at least every %d days (floods move fast).\n• Data: deliver %.1f GB of useful images to Earth per day.\n• Lifetime: keep working for %d years.\n• Detail: %.0f m resolution or better, enough to see a flooded field.\n\nYour score depends on meeting all four. Press E to close the screen." % [req["max_revisit_days"], req["min_data_delivered"], req["min_lifetime"], req["max_resolution_m"]],
+		{"title": "Your three requirements",
+		 "text": "• Revisit: see each flood-prone area at least every %d days (floods move fast).\n• Data: deliver %.1f GB of useful images to Earth per day.\n• Lifetime: keep working for %d years.\n\nYour score depends on meeting all three. Press E to close the screen." % [req["max_revisit_days"], req["min_data_delivered"], req["min_lifetime"]],
 		 "todo": "Close the screen (E)", "until": "close"},
 		{"title": "The parts shelves",
 		 "text": "The shelves hold real spacecraft parts: cameras, solar panels, batteries, radios, computers, pointing systems and thrusters.\n\nLook at any part to read its specs. Every part costs mass (kg), power (W) and money ($M).",
 		 "todo": "Look at a part on a shelf", "until": "focus_part", "target": "shelf"},
 		{"title": "Installing a part",
-		 "text": "Each slot on your CubeSat holds one part of each kind. Your CubeSat starts with the cheapest option in every slot.\n\nPress E while looking at a part to install it. It replaces the old one, and the model on the stand changes.",
+		 "text": "Every slot is a DECISION between a simple and an advanced option. Your CubeSat starts with the simple one in every slot.\n\nThe DECISION card on the left shows the consequences before you commit: what changes, and which checks it fixes or breaks. Every check has a warning level: green NOMINAL, amber CAUTION (no safety margin), red WARNING (the mission will suffer), flashing red CRITICAL (launch blocked). The light at the bottom right shows the worst one.\n\nPress E to install the part you are looking at.",
 		 "todo": "Install any part (E)", "until": "pick", "target": "shelf"},
 		{"title": "Watch your resources",
 		 "text": "Every choice changes your budgets. The RESOURCES screen in the middle of the front wall adds them up live.\n\nOpen it.",
@@ -83,20 +93,20 @@ func _build_steps() -> void:
 		{"title": "Power and eclipse",
 		 "text": "Solar panels only work in sunlight. In your orbit Earth blocks the Sun for about %d of every %d minutes: that's eclipse. During eclipse the battery runs everything, and only about 60%% of it can be used safely.\n\nIf the average power made is less than what the parts use, the battery drains and the CubeSat goes into safe mode.\n\nPress Enter to continue." % [int(_o("eclipse_min")), int(_o("period_min"))],
 		 "until": "next"},
-		{"title": "The real challenge: data",
-		 "text": "Your camera makes about 3 GB of images every day. But the radio can only send while a ground station is in view, roughly 30 to 50 minutes a day.\n\nGB per day = radio speed (Mbps) x contact minutes x 60 / 8000.\nThe UHF radio you start with sends almost nothing. Most of your pictures would never reach Earth.\n\nPress E to close the screen.",
+		{"title": "Where your data goes",
+		 "text": "Your camera makes %.2f GB of images a day. The radio can send %.2f GB/day, because it only talks to the ground station for about %d minutes a day:\nGB/day = Mbps x contact minutes x 60 / 8000.\n\nBut basic pointing keeps only %d%% of images sharp, so just %.2f GB/day of USEFUL data arrives. You need %.1f.\n\nPress E to close the screen." % [_x("data_gen"), _x("downlink"), int(_o("contact_min_per_day")), int(100 * _x("pointing")), _x("useful_per_day"), req["min_data_delivered"]],
 		 "todo": "Close the screen (E)", "until": "close"},
-		{"title": "Fix the downlink",
-		 "text": "Go back to the shelves and install a faster radio.\n\n• S-band (2 Mbps): about 0.5-0.75 GB/day. Still too slow for %.1f GB.\n• X-band (20 Mbps): about 4.5-7.5 GB/day. Enough, but it uses 6 W, so check your power." % req["min_data_delivered"],
-		 "todo": "Install the X-band or S-band radio", "until": "radio", "target": "comms"},
+		{"title": "Decision: pointing",
+		 "text": "Go to the POINTING shelf (follow the arrow) and look at the precision attitude control. Read its DECISION card: it fixes the data requirement, but costs power and mass.\n\nEvery fix in this game has a price. Your job is to find the set of decisions that meets all three requirements within your power, mass and budget.",
+		 "todo": "Install precision pointing", "until": "adcs", "target": "adcs"},
 		{"title": "Listen to your advisors",
 		 "text": "The ADVISORS screen on the right of the front wall is your engineering team. They warn you about anything that will break: not enough power, too heavy, over budget, data stuck on board.\n\nOpen it and read what they say.",
 		 "todo": "Open the Advisors screen (E)", "until": "open:Advisors", "target": "Advisors"},
 		{"title": "Fix the warnings",
-		 "text": "Use the warnings to improve your design. Typical fixes:\n• Power short: deployable solar wings.\n• Blurry images: precise pointing.\n• Short lifetime: a small thruster.\n\nWhen you're ready, close the screen and walk to the MISSION CONSOLE on the right-hand wall.",
+		 "text": "Use the warnings to improve your design. Typical fixes:\n• Revisit too slow: a different orbit (at the console).\n• Power short: the deployable solar array.\n• Battery runs out in eclipse: the bigger battery.\n• Data piling up: a faster radio.\n\nWhen you're ready, close the screen and walk to the MISSION CONSOLE on the right-hand wall.",
 		 "todo": "Open the Mission Console (E)", "until": "open:Mission Console", "target": "Mission Console"},
 		{"title": "Orbit, rocket, launch",
-		 "text": "Here you choose where your CubeSat flies:\n• Low orbit 51.6°: cheap ride, but passes over the farms only every 5 days.\n• Sun-synchronous orbit: passes every 3 days, always at the same local time, and polar ground stations see it more often.\n\nPick a rocket that goes to that orbit, set the lifetime, then click LAUNCH.",
+		 "text": "Here you choose the orbit and the rocket. Under each choice the console shows what switching would do (IF ... → consequences).\n\n%s\n\nWatch the rocket price against your $%s M budget, set the lifetime, then click LAUNCH." % [_orbit_lines(), str(m["budget"])],
 		 "todo": "Click LAUNCH", "until": "launch"},
 		{"title": "Liftoff!",
 		 "text": "You're in Mission Control. The big screen shows your CubeSat circling Earth. The game now flies your mission day by day, with real problems like solar storms and ground station outages.\n\nOpen the ORBIT & TRAJECTORY MONITOR on the left to see the live telemetry.",
@@ -183,7 +193,7 @@ func _show_step() -> void:
 		MissionState.tutor_done = true
 		_step_lbl.text = ""
 		_title.text = "Quick reference"
-		_body.text = "• Requirements: Briefing screen.\n• Budgets: Resources screen.\n• Problems: Advisors screen.\n• Data per day = Mbps x contact minutes x 60 / 8000.\n• Eclipse ~35 min per orbit: battery must cover it.\n• Sun-synchronous orbit = faster revisit, more contact.\n• Read the WHY lines after every mission."
+		_body.text = "• Requirements: Briefing screen.\n• Budgets: Resources screen.\n• Problems: Advisors screen.\n• Data per day = Mbps x contact minutes x 60 / 8000.\n• Eclipse ~34 min per orbit: battery must cover it.\n• Look at a part to see its DECISION card before installing.\n• The console shows what each orbit and rocket would change.\n• Read the WHY lines after every mission."
 		_todo.text = ""
 		_keys.text = "[T] hide"
 		_arrow.visible = false
@@ -242,11 +252,12 @@ func on_event(ev: String) -> void:
 const CONCEPTS := {
 	"payload": ["PAYLOAD", "The instrument that does the mission, here a camera. Resolution is the smallest thing it can see: you need 10 m or better. Sharper images are bigger files to send home."],
 	"solar": ["SOLAR POWER", "Panels make power only in sunlight. Averaged over an orbit you get about 63% of their rated power, because of eclipse."],
-	"battery": ["BATTERY", "Runs the CubeSat during eclipse, about 35 minutes of every 96-minute orbit. Only about 60% of the capacity is used, to keep the battery healthy for years."],
+	"battery": ["BATTERY", "Runs the CubeSat during eclipse, about a third of every orbit. Only about 60% of the capacity is used, to keep the battery healthy for years."],
 	"comms": ["RADIO (DOWNLINK)", "Sends images to Earth only while a ground station is in view, about 30-50 minutes a day. Faster radio = more data, but more power while transmitting."],
 	"computer": ["COMPUTER & STORAGE", "Runs the spacecraft and stores images between ground passes. If storage fills up, new images are lost."],
-	"adcs": ["ATTITUDE CONTROL (ADCS)", "Points the camera at the ground. Rough pointing blurs about 30% of images. Precise pointing (reaction wheels + star tracker) can also tilt sideways to revisit sooner."],
-	"propulsion": ["PROPULSION", "At 550 km a trace of air slowly drags the CubeSat down until it burns up. A small thruster pushes back and adds years of life."],
+	"adcs": ["ATTITUDE CONTROL (ADCS)", "Points the camera at the ground. Rough pointing blurs many images. Precise pointing (reaction wheels + star tracker) can also tilt sideways to revisit sooner."],
+	"thermal": ["THERMAL CONTROL", "Space swings from hot sunlight to freezing shadow every orbit. Blankets and radiators need no power; heaters keep the battery warm but use power."],
+	"propulsion": ["PROPULSION", "A thruster changes or holds the orbit. In these orbits the CubeSat stays up for 10+ years anyway, so ask: is it worth the mass, power and money?"],
 }
 
 func _show_concept(cat: String) -> void:
@@ -284,8 +295,8 @@ func _check(until: String) -> bool:
 			return not _sv_open()
 		"focus_part", "pick", "launch", "finished":
 			return _flags.get(until, false)
-		"radio":
-			return MissionState.picks.get("comms", "") in ["radio_s", "radio_x"]
+		"adcs":
+			return MissionState.part_of("adcs").get("tier", "") == "advanced"
 	if until.begins_with("open_or_done:"):
 		return _flags.get("open:" + until.substr(13), false) or _flags.get("finished", false)
 	if until.begins_with("open:"):
@@ -299,10 +310,10 @@ func _update_arrow(st: Dictionary, delta: float) -> void:
 		_arrow.visible = false
 		return
 	var pos = null
-	if target == "shelf" or target == "comms":
+	if target == "shelf" or target == "adcs":
 		var best := INF
 		for n in lab.find_children("*", "StaticBody3D", true, false):
-			if "part_id" in n and (target == "shelf" or n.category == "comms" and n.part_id == "radio_x"):
+			if "part_id" in n and (target == "shelf" or n.category == "adcs" and GameData.part("adcs", n.part_id).get("tier", "") == "advanced"):
 				var d: float = n.global_position.distance_to(lab.player.global_position)
 				if d < best:
 					best = d

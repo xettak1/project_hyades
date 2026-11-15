@@ -23,7 +23,9 @@ const DAYS_PER_SECOND := 30.0
 
 const CAT_TITLES := {"payload": "PAYLOAD", "solar": "SOLAR POWER", "battery": "BATTERIES",
 	"comms": "RADIOS & ANTENNAS", "computer": "COMPUTERS & STORAGE", "adcs": "POINTING (ATTITUDE)",
-	"propulsion": "PROPULSION & FUEL"}
+	"propulsion": "PROPULSION & FUEL", "thermal": "THERMAL CONTROL"}
+const CAT_SHORT := {"payload": "PAYLOAD", "solar": "SOLAR", "battery": "BATTERY", "comms": "RADIOS",
+	"computer": "COMPUTERS", "adcs": "POINTING", "propulsion": "PROPULSION", "thermal": "THERMAL"}
 const SHORT := {
 	"leo_550": "ORBIT\nLEO 51.6", "sso_550": "ORBIT\nSUN-SYNC", "leo_500": "ORBIT\nLEO 500",
 	"sso_700": "ORBIT\nDAWN-DUSK", "lunar_direct": "TRANSFER\nDIRECT", "lunar_low_energy": "TRANSFER\nLOW-ENERGY",
@@ -52,6 +54,8 @@ var rocket_buttons: Dictionary = {}
 var speed_buttons: Dictionary = {}
 
 var sim
+var outdoor: Dictionary = {}   # sky, sun, environment (used by the launch sequence)
+var complex: Node3D            # the launch pad outside the window
 var speed := 1.0
 var _day_accum := 0.0
 var _launch_delay := 0.0
@@ -61,6 +65,7 @@ func _ready() -> void:
 	if MissionState.picks.is_empty():
 		MissionState.start_mission("flood_watch")
 	MissionState.phase = "design"
+	MissionState.live = {}
 	add_to_group("lab")
 	env = MissionState.mission()["env"]
 	R = env["room"]
@@ -81,7 +86,10 @@ func _ready() -> void:
 	_build_stand()
 	_build_wall_screens()
 	_build_console()
-	_build_mission_control()
+	if LevelFlow.index >= 0:
+		_build_viewing_gallery()
+	else:
+		_build_mission_control()   # old single-room flow (kept for the tests)
 
 	hud = HUD.new()
 	add_child(hud)
@@ -89,89 +97,38 @@ func _ready() -> void:
 	add_child(player)
 	player.teleport(spawn, 0.0)
 	add_child(PauseMenu.new())
+	add_child(preload("res://scripts/world/DecisionCard.gd").new())
+	add_child(preload("res://scripts/ui/InstrumentationPanel.gd").new())
+	add_child(preload("res://scripts/ui/MissionProgressBar.gd").new())
 	var sv := ScreenView.new()
 	sv.player = player
 	add_child(sv)
 	MissionState.design_changed.connect(_update_console_lights)
 	_update_console_lights()
-	if MissionState.tutor_enabled:
-		var tutor := preload("res://scripts/world/Tutor.gd").new()
-		tutor.lab = self
-		add_child(tutor)
-	else:
-		hud.show_message("%s - %s. Read the briefing on the front wall, then build your spacecraft." % [env["title"].capitalize(), MissionState.mission()["name"]], 6.0)
+	# Mission Tutor (bottom of the screen). With the tutor switched off it still reacts to decisions.
+	var tutor := preload("res://scripts/ui/TutorDialogueManager.gd").new()
+	tutor.room = self
+	add_child(tutor)
 
 # ---------------------------------------------------------------- world
 func _build_environment() -> void:
-	var we := WorldEnvironment.new()
-	var e := Environment.new()
-	e.background_mode = Environment.BG_COLOR
-	e.background_color = Color(0.05, 0.05, 0.07)
-	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	e.ambient_light_color = env["light"] * 0.6
-	e.ambient_light_energy = 0.6
-	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	# Real-world panorama used for reflections on metal (the satellite, bezels, floor plates).
-	if ResourceLoader.exists(HDRI):
-		var pano := PanoramaSkyMaterial.new()
-		pano.panorama = load(HDRI)
-		var sky := Sky.new()
-		sky.sky_material = pano
-		e.sky = sky
-		e.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
-		e.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-		e.ambient_light_sky_contribution = 0.55
-		e.ambient_light_energy = 0.9
-	e.ssao_enabled = true
-	e.ssao_intensity = 1.6
-	e.glow_enabled = true
-	e.glow_intensity = 0.4
-	we.environment = e
-	add_child(we)
-	var x := -hx + 4.0
-	while x < hx:
-		var z := -hz + 3.0
-		while z < hz:
-			var l := OmniLight3D.new()
-			l.position = Vector3(x, R.y - 0.5, z)
-			l.omni_range = 9.0 + R.y * 0.3
-			l.light_energy = float(env.get("lamp", 0.9))
-			l.light_color = env["light"]
-			add_child(l)
-			z += 6.0
-		x += 6.0
+	# Launch control building on the coast: real daylight sky, sun behind the building lighting the pad.
+	outdoor = Outdoor.sky(self, Color(0.28, 0.52, 0.88), Color(0.74, 0.84, 0.94), Color(0.32, 0.34, 0.3), Vector3(-38, 205, 0), 1.25)
+	Outdoor.lamps(self, R, env["light"], float(env.get("lamp", 0.9)) * 0.8, 6.0)
+	complex = preload("res://scripts/world/LaunchComplex.gd").new()
+	complex.position = Vector3(0, 0, hz)
+	add_child(complex)
 
-const TEX_FLOOR := "res://assets/textures/metal_plate_diff.jpg"
-const TEX_WALL := "res://assets/textures/rusty_metal_diff.jpg"
-const HDRI := "res://assets/textures/hdri_indoor.jpg"
+const TEX_FLOOR := RoomKit.TEX_FLOOR
+const TEX_WALL := RoomKit.TEX_WALL
 
 ## Tiled texture material. scale = repeats per metre (world-space triplanar, so any box works).
 ## Falls back to a plain colour if the texture file is missing.
 func _tex_mat(path: String, scale: float, tint: Color, metal: float, rough: float, fallback: Color) -> StandardMaterial3D:
-	if not ResourceLoader.exists(path):
-		return PartModels.mat(fallback, 0.0, 0.8)
-	var m := StandardMaterial3D.new()
-	m.albedo_texture = load(path)
-	m.albedo_color = tint
-	m.metallic = metal
-	m.roughness = rough
-	m.uv1_triplanar = true
-	m.uv1_world_triplanar = true
-	m.uv1_scale = Vector3.ONE * scale
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	return m
+	return RoomKit.tex_mat(path, scale, tint, metal, rough, fallback)
 
 func _solid(size: Vector3, pos: Vector3, m: Material) -> StaticBody3D:
-	var body := StaticBody3D.new()
-	body.position = pos
-	body.add_child(PartModels.box(size, m))
-	var cs := CollisionShape3D.new()
-	var bs := BoxShape3D.new()
-	bs.size = size
-	cs.shape = bs
-	body.add_child(cs)
-	add_child(body)
-	return body
+	return RoomKit.solid(self, size, pos, m)
 
 func _sign(text: String, pos: Vector3, yaw: float, size: int = 64, color: Color = Color(-1, 0, 0)) -> Label3D:
 	var l := Label3D.new()
@@ -193,14 +150,15 @@ func _build_room() -> void:
 	_solid(Vector3(R.x, 0.2, R.z), Vector3(0, -0.1, 0), floor_m)
 	_solid(Vector3(R.x, 0.2, R.z), Vector3(0, R.y + 0.1, 0), ceil_m)
 	_solid(Vector3(R.x, R.y, 0.2), Vector3(0, R.y / 2, -hz - 0.1), wall_m)
-	_solid(Vector3(R.x, R.y, 0.2), Vector3(0, R.y / 2, hz + 0.1), wall_m)
+	# Back wall = big window over the launch pad
+	Outdoor.window_wall(self, Vector3(0, 0, hz + 0.1), R.x, R.y, 0.9, R.y - 0.75, 1.0, wall_m)
 	_solid(Vector3(0.2, R.y, R.z), Vector3(-hx - 0.1, R.y / 2, 0), wall_m)
 	_solid(Vector3(0.2, R.y, R.z), Vector3(hx + 0.1, R.y / 2, 0), wall_m)
 	var mc_len := hz - mc_start
 	add_child(PartModels.box(Vector3(R.x, 0.01, mc_len), _tex_mat(TEX_FLOOR, 0.45, Color(0.75, 0.8, 1.0), 0.6, 0.55, Color(0.15, 0.2, 0.32)), Vector3(0, 0.005, mc_start + mc_len / 2)))
 	add_child(PartModels.box(Vector3(R.x, 0.012, 0.1), PartModels.mat(env["accent"]), Vector3(0, 0.006, mc_start)))
 	_sign(env["title"], Vector3(0, R.y - 0.4, -hz + 0.05), 0.0, 72)
-	_sign("MISSION CONTROL", Vector3(0, R.y - 0.4, hz - 0.05), 180.0, 72)
+	_sign("LAUNCH PAD VIEW" if LevelFlow.index >= 0 else "MISSION CONTROL", Vector3(0, R.y - 0.38, hz - 0.05), 180.0, 64)
 
 func _build_decor() -> void:
 	match env["sat_style"]:
@@ -260,17 +218,23 @@ func _slot_z(i: int) -> float:
 func _build_shelves() -> void:
 	var cats: Array = MissionState.categories()
 	var table_m := PartModels.mat(env["table"], 0.4, 0.5)
+	# Left wall takes 4 tables (5 when there are 8 categories); the right wall keeps its last slot for the console.
+	var left_n := 5 if cats.size() > 7 else 4
 	for n in cats.size():
 		var cat: String = cats[n]
-		var side := -1 if n < 4 else 1
-		var z := _slot_z(n if n < 4 else n - 4)
+		var side := -1 if n < left_n else 1
+		var z := _slot_z(n if n < left_n else n - left_n)
+		if side < 0 and left_n == 5:
+			z = -hz + 2.0 + (mc_start - 1.6 - (-hz + 2.0)) * n / 4.0
 		var x: float = side * (hx - 0.8 * ps)
-		var tlen := 2.3 * ps
+		var tlen := (1.75 if side < 0 and left_n == 5 else 2.3) * ps
 		_solid(Vector3(1.2 * ps, 0.9, tlen), Vector3(x, 0.45, z), table_m)
 		if env["stripes"]:
 			for s in 8:
 				add_child(PartModels.box(Vector3(1.2 * ps + 0.02, 0.12, tlen / 8 * 0.5), PartModels.mat(Color(1, 0.8, 0.1) if s % 2 == 0 else Color(0.05, 0.05, 0.05)), Vector3(x, 0.72, z - tlen / 2 + tlen / 8 * (s + 0.5))))
-		_sign(CAT_TITLES.get(cat, cat.to_upper()), Vector3(side * (hx - 0.05), 2.4 + (R.y - 6.0) * 0.3, z), -90.0 * side, 56)
+		var tight := side < 0 and left_n == 5
+		var title: String = CAT_SHORT.get(cat, cat.to_upper()) if tight else CAT_TITLES.get(cat, cat.to_upper())
+		_sign(title, Vector3(side * (hx - 0.05), 2.4 + (R.y - 6.0) * 0.3, z), -90.0 * side, 46 if tight else 56)
 		var ids: Array = GameData.parts_for(MissionState.mission_id)[cat].keys()
 		for i in ids.size():
 			var item := PartItem.new()
@@ -357,6 +321,19 @@ func _update_console_lights() -> void:
 	for id in rocket_buttons:
 		rocket_buttons[id].set_lit(id == MissionState.rocket_id)
 
+# ---------------------------------------------------------------- viewing gallery (four-level flow)
+## The back of launch control: the window over the pad, a railing and a few seats.
+func _build_viewing_gallery() -> void:
+	var rail := PartModels.mat(Color(0.75, 0.76, 0.8), 0.8, 0.3)
+	add_child(PartModels.box(Vector3(R.x - 2.4, 0.06, 0.06), rail, Vector3(0, 1.05, hz - 0.9)))
+	for i in 9:
+		add_child(PartModels.box(Vector3(0.05, 1.05, 0.05), rail, Vector3(-hx + 1.2 + i * (R.x - 2.4) / 8.0, 0.52, hz - 0.9)))
+	var seat := PartModels.mat(Color(0.15, 0.2, 0.35), 0.1, 0.7)
+	for x in [-6.0, -4.5, -3.0, 3.0, 4.5, 6.0]:
+		add_child(PartModels.box(Vector3(1.1, 0.45, 0.9), seat, Vector3(x, 0.23, hz - 3.2)))
+		add_child(PartModels.box(Vector3(1.1, 0.7, 0.15), seat, Vector3(x, 0.8, hz - 3.6)))
+	_sign("Your rocket is on the pad. Press LAUNCH at the Mission Console when you are ready.", Vector3(0, 0.95, hz - 0.85), 180.0, 28, Color(1, 1, 1))
+
 # ---------------------------------------------------------------- mission control
 func _desk_button(text: String, color: Color, action: Callable, x: float) -> Node3D:
 	var b := Button3D.new()
@@ -420,18 +397,31 @@ func _on_launch_pressed() -> void:
 	var g := MissionState.gate()
 	if not g["hard"].is_empty():
 		console_panel.set_status("LAUNCH BLOCKED: " + g["hard"][0])
-		hud.show_message("Launch blocked. Check the console screen and the Advisors screen.")
+		get_tree().call_group("tutor", "on_event", "launch_blocked")
+		hud.show_message("CRITICAL: launch blocked. Check the console screen and the Advisors screen.", 4.0, Consequences.color("critical"))
 		return
 	if not g["warn"].is_empty() and _confirm_time <= 0.0:
 		_confirm_time = 6.0
-		console_panel.set_status("%d warning(s) on the Advisors screen. Press LAUNCH again within 6 s to launch anyway." % g["warn"].size())
-		hud.show_message("Warnings! Press LAUNCH again to launch anyway.")
+		console_panel.set_status("%d RED WARNING(S) on the Advisors screen. Press LAUNCH again within 6 s to launch anyway." % g["warn"].size())
+		get_tree().call_group("tutor", "on_event", "launch_warning")
+		hud.show_message("RED WARNINGS: the mission will underperform. Press LAUNCH again to launch anyway.", 4.0, Consequences.color("bad"))
 		return
 	_launch()
 
 func _launch() -> void:
 	_confirm_time = 0.0
 	console_panel.set_status("")
+	# Four-level flow: Level 1 ends with the launch, seen through the window, then hands over to Level 2.
+	if LevelFlow.index >= 0:
+		MissionState.phase = "launched"
+		get_tree().call_group("tutor", "on_event", "launch")
+		var seq := preload("res://scripts/world/LaunchSequence.gd").new()
+		seq.lab = self
+		seq.complex = complex
+		seq.results = MissionState.launch_results()
+		add_child(seq)
+		seq.start()
+		return
 	MissionState.phase = "ops"
 	sim = Simulator.new()
 	sim.setup(MissionState.compute(), MissionState.mission()["requirements"], MissionState.lifetime_years)

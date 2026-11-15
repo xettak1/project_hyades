@@ -1,0 +1,513 @@
+{
+ "_readme": "Mission Tutor dialogue. Edit freely. {placeholders} are filled from the live mission (see TutorDialogueManager.context()). Steps advance when 'until' happens: next (Enter), move, open:<screen>, close, focus_part, pick, adcs, launch, event:<name>.",
+ "levels": {
+  "launch": {
+   "stage": "L1 · LAUNCH",
+   "steps": [
+    {
+     "say": [
+      "Welcome aboard, Mission Director. Today we're sending a satellite into space to help farmers protect their crops.",
+      "Floods can ruin a whole season of crops in a few days. From space, we can spot them early and warn people in time.",
+      "But we have only ${budget} million and our satellite can weigh at most {mass_limit} kg. Every choice has a price.",
+      "Turn around and look through the big window behind you: that's our rocket, waiting on the launch pad."
+     ],
+     "until": "next"
+    },
+    {
+     "say": [
+      "First, let's look around. Use W, A, S, D to walk and the mouse to look."
+     ],
+     "todo": "Walk a few steps",
+     "until": "move"
+    },
+    {
+     "say": [
+      "Every mission starts with a promise: what the satellite must do. Ours is on the BRIEFING screen. Follow the yellow arrow and press E."
+     ],
+     "todo": "Open the Briefing screen (E)",
+     "until": "open:Briefing",
+     "target": "Briefing"
+    },
+    {
+     "say": [
+      "We promised three things. First: see each farm area at least every {max_revisit} days, because floods move fast.",
+      "Second: send home {min_data} GB of useful pictures every day. Third: keep working for at least {min_life} years.",
+      "Press E to close the screen when you're ready."
+     ],
+     "todo": "Close the screen (E)",
+     "until": "close"
+    },
+    {
+     "say": [
+      "These shelves hold real spacecraft parts. Look at one to see what it costs in weight, power and money."
+     ],
+     "todo": "Look at a part on a shelf",
+     "until": "focus_part",
+     "target": "shelf"
+    },
+    {
+     "say": [
+      "Every slot has a simple, cheap option and a better, pricier one. We start with the simple ones.",
+      "Before you commit, the DECISION card on the right shows what would change. Green is better, amber is a warning sign, red means trouble. Press E to install a part."
+     ],
+     "todo": "Install any part (E)",
+     "until": "pick",
+     "target": "shelf"
+    },
+    {
+     "say": [
+      "Keep an eye on LAUNCH CONTROL on the left. It's our dashboard: money, weight, and whether the rocket can carry us.",
+      "Here's something important: power. Our solar panels only work in sunlight, and for about {eclipse} minutes of every {period}-minute orbit, Earth blocks the Sun.",
+      "During that darkness, the battery keeps everything alive. Think of a phone running on its battery all night."
+     ],
+     "until": "next"
+    },
+    {
+     "say": [
+      "Now the pictures. Our camera makes {data_gen} GB a day, but basic pointing keeps only {pointing_pct}% of them sharp.",
+      "That's just {useful} GB of useful pictures a day, and we promised {min_data}. A blurry photo of a flood helps nobody."
+     ],
+     "until": "next"
+    },
+    {
+     "say": [
+      "Let's fix that. Walk to the POINTING shelf and install the precision attitude control. It costs a bit more power and weight, but every picture comes out sharp."
+     ],
+     "todo": "Install precision pointing",
+     "until": "adcs",
+     "target": "adcs"
+    },
+    {
+     "say": [
+      "Our engineers report on the ADVISORS screen. If something is going to break, they'll tell you there. Go and have a look."
+     ],
+     "todo": "Open the Advisors screen (E)",
+     "until": "open:Advisors",
+     "target": "Advisors"
+    },
+    {
+     "say": [
+      "Now we choose our ride to space. Our rocket has limited carrying capacity. Think of it like packing a suitcase: carry too much and we need a bigger, more expensive rocket.",
+      "Head to the MISSION CONSOLE on the right wall. That's where we pick our orbit and our rocket."
+     ],
+     "todo": "Open the Mission Console (E)",
+     "until": "open:Mission Console",
+     "target": "Mission Console"
+    },
+    {
+     "say": [
+      "{orbit_lines}",
+      "Take a look at your options. Every choice has a price. When LAUNCH CONTROL says READY, press LAUNCH."
+     ],
+     "todo": "Press LAUNCH",
+     "until": "launch"
+    }
+   ]
+  },
+  "space": {
+   "stage": "L2 · SPACE",
+   "steps": [
+    {
+     "say": [
+      "We made it! Look out of the window: that's Africa, right beneath us.",
+      "Those glowing rings are our four farming regions. The little squares inside are the fields we care about.",
+      "But here's the problem: our satellite doesn't have unlimited power or memory, and it only passes over Africa now and then. We must choose carefully."
+     ],
+     "until": "next"
+    },
+    {
+     "say": [
+      "Walk to the OBSERVATION CONSOLE on the left wall. It shows which regions are below us right now."
+     ],
+     "todo": "Open the Observation Console (E)",
+     "until": "open:Observation Console",
+     "target": "Observation Console"
+    },
+    {
+     "say": [
+      "Pick a region marked IN VIEW, then press SCAN. Watch the SATELLITE CAMERA on the right wall zoom in.",
+      "Careful with clouds: our camera sees light, like your phone camera. Thick cloud means white pictures."
+     ],
+     "todo": "Scan a region",
+     "until": "event:first_scan"
+    },
+    {
+     "say": [
+      "Every scan uses one pass and fills our memory. Try to photograph all four regions at least once.",
+      "When you've done what you can, press END OBSERVATION CAMPAIGN. Everything we stored goes to Level 3."
+     ],
+     "todo": "Scan the regions, then end the campaign",
+     "until": "event:level_done"
+    }
+   ]
+  },
+  "ground": {
+   "stage": "L3 · GROUND",
+   "steps": [
+    {
+     "say": [
+      "Welcome to the ground station! We've got {collected} GB of pictures waiting up there.",
+      "But there's a catch. The satellite can only talk to us while it flies over these dishes, for about {contact} minutes a day.",
+      "Imagine trying to send ten big videos through a very slow internet connection. That's what our satellite is dealing with."
+     ],
+     "until": "next"
+    },
+    {
+     "say": [
+      "GROUND CONTROL on the left shows the bottleneck: what's onboard against what the link can carry.",
+      "Choose what comes down first with the PRIORITY buttons on the middle desk: flood pictures or crop pictures. Then press START PASS and watch the sky."
+     ],
+     "todo": "Set a priority, then press START PASS",
+     "until": "event:pass_start"
+    },
+    {
+     "say": [
+      "Here it comes! See the dishes turning to follow it? That green line is our radio link. Every dot is a packet of pictures."
+     ],
+     "todo": "Watch the pass",
+     "until": "event:level_done"
+    }
+   ]
+  },
+  "user": {
+   "stage": "L4 · USER",
+   "steps": [
+    {
+     "say": [
+      "The data has finally reached Earth: {received} GB of it. But collecting pictures is only half the job.",
+      "Look out of the window: those are the very farms our satellite photographed. Some fields are green, some are yellowing, some are under water.",
+      "Now we need to turn pictures into help for the farmers."
+     ],
+     "until": "next"
+    },
+    {
+     "say": [
+      "Go to the ANALYSIS WORKSTATION on the left wall. Grey squares are places we have no pictures of: we can't know what's happening there."
+     ],
+     "todo": "Open the Analysis Workstation (E)",
+     "until": "open:Analysis Workstation",
+     "target": "Analysis Workstation"
+    },
+    {
+     "say": [
+      "Click every plot that looks flooded (blue). Then choose how to tell people, and press DELIVER REPORT. Remember: a flood alert is only useful if it arrives in time."
+     ],
+     "todo": "Mark the flooded plots and deliver",
+     "until": "event:level_done"
+    }
+   ]
+  }
+ },
+ "concepts": {
+  "payload": "This is the camera, the reason we're going to space. Sharper or richer pictures are great, but they make bigger files.",
+  "solar": "Solar panels are our only power source. No sunlight, no power: that's what the battery is for.",
+  "battery": "The battery is our power bank for the dark side of each orbit. We only drain it part way, so it lasts for years.",
+  "comms": "The radio is our link home. It can only talk while a ground station is in view, so a faster radio sends more in the same time.",
+  "computer": "The computer is the satellite's brain, and it stores pictures until the next chance to send them.",
+  "adcs": "Attitude control keeps the camera pointed at the ground. Think of trying to take a photo from a spinning car.",
+  "propulsion": "A thruster lets us change or hold our orbit. It's handy, but it's heavy and can be very power-hungry.",
+  "thermal": "In space it swings from scorching sunlight to freezing shadow every orbit. Blankets keep the heat in for free; heaters cost power."
+ },
+ "reactions": [
+  {
+   "when": "pick",
+   "category": "payload",
+   "tier": "advanced",
+   "kind": "reaction",
+   "say": "Excellent detail! But sharper pictures usually mean larger files: {data_gen} GB a day now. Let's make sure our radio can send them home."
+  },
+  {
+   "when": "pick",
+   "category": "payload",
+   "tier": "simple",
+   "kind": "reaction",
+   "say": "The multispectral camera makes smaller files. Easier to send home, but less science in each picture."
+  },
+  {
+   "when": "pick",
+   "category": "comms",
+   "tier": "advanced",
+   "kind": "reaction",
+   "say": "X-band! That's like upgrading from slow home internet to fibre. It does use more power while it talks."
+  },
+  {
+   "when": "pick",
+   "category": "comms",
+   "tier": "simple",
+   "kind": "reaction",
+   "say": "The S-band radio is cheap and light, but it's a narrow pipe. Fine for small pictures, not for big ones."
+  },
+  {
+   "when": "pick",
+   "category": "solar",
+   "tier": "advanced",
+   "kind": "reaction",
+   "say": "Bigger solar wings: about twice the power. Great for hungry parts, but they add weight."
+  },
+  {
+   "when": "pick",
+   "category": "solar",
+   "tier": "simple",
+   "kind": "reaction",
+   "say": "Body panels are light and simple, but they don't make much power. Keep the power-hungry parts in check."
+  },
+  {
+   "when": "pick",
+   "category": "battery",
+   "tier": "advanced",
+   "kind": "reaction",
+   "say": "A bigger battery is like packing a large power bank. We'll get through every eclipse with energy to spare."
+  },
+  {
+   "when": "pick",
+   "category": "adcs",
+   "tier": "advanced",
+   "kind": "good",
+   "say": "Excellent decision! Every picture will now come out sharp. You've protected the most important part of our mission."
+  },
+  {
+   "when": "pick",
+   "category": "adcs",
+   "tier": "simple",
+   "kind": "alert",
+   "say": "Careful: with basic pointing, more than half of our pictures will come out blurry."
+  },
+  {
+   "when": "pick",
+   "category": "propulsion",
+   "tier": "advanced",
+   "kind": "reaction",
+   "say": "The ion thruster is powerful but very hungry: it needs 10 watts. Watch the power."
+  },
+  {
+   "when": "pick",
+   "category": "thermal",
+   "tier": "advanced",
+   "kind": "reaction",
+   "say": "Heaters keep the battery cosy, but they eat 4 watts of power, all the time."
+  },
+  {
+   "when": "pick",
+   "category": "computer",
+   "tier": "advanced",
+   "kind": "reaction",
+   "say": "A smarter computer with more memory. It also uses almost 4 watts."
+  },
+  {
+   "when": "rocket",
+   "id": "rocketlab_electron",
+   "kind": "alert",
+   "say": "A rocket all to ourselves! But at ${rocket_cost} million it costs more than our whole budget."
+  },
+  {
+   "when": "rocket",
+   "id": "spacex_rideshare",
+   "kind": "good",
+   "say": "You've saved money. Good thinking! We share the ride with other satellites, so it's cheap, but we go where the rocket goes."
+  },
+  {
+   "when": "orbit",
+   "id": "sso_700",
+   "kind": "good",
+   "say": "Sun-synchronous orbit: we pass over the farms every {revisit} days, always at the same time of day. Ground contact is a little shorter, though."
+  },
+  {
+   "when": "orbit",
+   "id": "leo_550",
+   "kind": "alert",
+   "say": "This lower orbit is easy to reach, but we'd only see the farms every {revisit} days. Floods move faster than that."
+  },
+  {
+   "when": "worse",
+   "check": "rocket_used",
+   "min_level": 2,
+   "kind": "alert",
+   "say": "The rocket can't carry us! We need a lighter satellite or a bigger rocket."
+  },
+  {
+   "when": "worse",
+   "check": "budget_used",
+   "min_level": 2,
+   "kind": "alert",
+   "say": "We're running out of money. A mission that goes over budget gets cancelled."
+  },
+  {
+   "when": "worse",
+   "check": "mass_used",
+   "min_level": 2,
+   "kind": "alert",
+   "say": "We're nearly too heavy. Every extra kilogram is a risk."
+  },
+  {
+   "when": "worse",
+   "check": "power_margin",
+   "min_level": 2,
+   "kind": "alert",
+   "say": "We have a problem: our parts need more power than the panels can make. Something will have to switch off."
+  },
+  {
+   "when": "worse",
+   "check": "battery_dod",
+   "min_level": 2,
+   "kind": "alert",
+   "say": "The battery can't get us through the dark side of each orbit. We'd go into safe mode in every eclipse."
+  },
+  {
+   "when": "worse",
+   "check": "downlink_load",
+   "min_level": 2,
+   "kind": "alert",
+   "say": "We have a problem. Not all our data can reach Earth. Which pictures matter most? A faster radio would help."
+  },
+  {
+   "when": "fixed",
+   "check": "data_margin",
+   "kind": "good",
+   "say": "Excellent decision! We'll now deliver enough useful pictures every day."
+  },
+  {
+   "when": "fixed",
+   "check": "revisit_ratio",
+   "kind": "good",
+   "say": "Now we'll see the farms often enough to catch floods in time. Well done!"
+  },
+  {
+   "when": "fixed",
+   "check": "power_margin",
+   "kind": "good",
+   "say": "Power is back in the green. Everything can run at once."
+  },
+  {
+   "when": "fixed",
+   "check": "downlink_load",
+   "kind": "good",
+   "say": "Our radio can now send home everything the camera makes."
+  },
+  {
+   "when": "event",
+   "id": "launch_blocked",
+   "kind": "alert",
+   "say": "We can't launch like this. Check LAUNCH CONTROL on the left: something is over the limit."
+  },
+  {
+   "when": "event",
+   "id": "launch_warning",
+   "kind": "alert",
+   "say": "We can launch, but the mission will struggle. Press LAUNCH again only if you're sure."
+  },
+  {
+   "when": "event",
+   "id": "scan_done",
+   "kind": "good",
+   "say": "Look at those fields! That pass made {scan_gb} GB of pictures. Memory used: {stored} of {storage} GB."
+  },
+  {
+   "when": "event",
+   "id": "scan_cloudy",
+   "kind": "alert",
+   "say": "Clouds! Our camera can't see through thick cloud, so that pass gave us mostly white pictures. Try that region again on another pass."
+  },
+  {
+   "when": "event",
+   "id": "storage_high",
+   "kind": "alert",
+   "say": "Our memory is filling up: {stored} of {storage} GB. In the next level all of this has to squeeze through a narrow radio link."
+  },
+  {
+   "when": "event",
+   "id": "storage_full",
+   "kind": "alert",
+   "say": "Memory full! New pictures are being lost. More storage or fewer scans would have helped."
+  },
+  {
+   "when": "event",
+   "id": "no_passes",
+   "kind": "reaction",
+   "say": "That was our last pass this month. Time to end the campaign and send the pictures home."
+  },
+  {
+   "when": "event",
+   "id": "not_in_view",
+   "kind": "reaction",
+   "say": "That region isn't below us right now. Wait for the next pass over Africa: the console shows when it's IN VIEW."
+  },
+  {
+   "when": "event",
+   "id": "priority_floods",
+   "kind": "reaction",
+   "say": "Floods first. If the link runs out of time, the crop pictures are the ones that wait."
+  },
+  {
+   "when": "event",
+   "id": "priority_crops",
+   "kind": "reaction",
+   "say": "Crop health first. Good for long-term planning, but a flood warning could arrive late."
+  },
+  {
+   "when": "event",
+   "id": "bottleneck",
+   "kind": "alert",
+   "say": "The pass is over and the link has closed. {left_onboard} GB never made it down. That's the data bottleneck: more data than our link can carry."
+  },
+  {
+   "when": "event",
+   "id": "all_received",
+   "kind": "good",
+   "say": "Excellent! Everything we collected reached Earth before the satellite flew out of range."
+  },
+  {
+   "when": "event",
+   "id": "need_product",
+   "kind": "reaction",
+   "say": "First choose how to tell people: an emergency alert, a flood map, a crop report or a dashboard."
+  },
+  {
+   "when": "event",
+   "id": "product_alert",
+   "kind": "reaction",
+   "say": "An emergency alert goes straight to farmers' phones. Perfect for floods, as long as it's on time."
+  },
+  {
+   "when": "event",
+   "id": "product_map",
+   "kind": "reaction",
+   "say": "A flood risk map helps officials decide where to send help first."
+  },
+  {
+   "when": "event",
+   "id": "product_report",
+   "kind": "reaction",
+   "say": "A crop report is great for planning the season, but too slow for a flood emergency."
+  },
+  {
+   "when": "event",
+   "id": "product_dashboard",
+   "kind": "reaction",
+   "say": "A dashboard keeps everyone updated, but someone has to be watching it."
+  },
+  {
+   "when": "event",
+   "id": "deliver_good",
+   "kind": "good",
+   "say": "Report sent! You found {flood_found} of {flood_total} flooded plots and warned people in time. That's a mission that helps farmers."
+  },
+  {
+   "when": "event",
+   "id": "deliver_partial",
+   "kind": "reaction",
+   "say": "Report sent. You found {flood_found} of {flood_total} flooded plots. Some help arrives, but not all of it."
+  },
+  {
+   "when": "event",
+   "id": "deliver_bad",
+   "kind": "alert",
+   "say": "Report sent, but it won't help much: only {flood_found} of {flood_total} flooded plots found."
+  },
+  {
+   "when": "event",
+   "id": "unseen_flood",
+   "kind": "alert",
+   "say": "{unseen_flood} flooded plots were in the grey areas. Nobody warned those farmers, because the pictures never reached us."
+  }
+ ]
+}

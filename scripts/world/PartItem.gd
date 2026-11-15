@@ -48,7 +48,7 @@ func _refresh() -> void:
 		_label.no_depth_test = true
 		_label.render_priority = 10
 		_label.position.y = 0.95
-		_label.text = "%s\n[%s]\n%s\n\n%s" % [head, p.get("tier", ""), UI.stats_text(p).replace("   ", "\n"), p.get("tooltip", "")]
+		_label.text = "%s\n[%s]" % [head, p.get("tier", "")]
 	else:
 		_label.font_size = 32
 		_label.no_depth_test = false
@@ -64,6 +64,9 @@ func on_focus(focused: bool) -> void:
 	_focused = focused
 	if focused:
 		get_tree().call_group("tutor", "on_part_focus", category)
+		get_tree().call_group("decision", "show_part", category, part_id)
+	else:
+		get_tree().call_group("decision", "hide_part", category, part_id)
 	if not focused:
 		_model.rotation = Vector3.ZERO
 	_refresh()

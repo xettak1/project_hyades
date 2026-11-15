@@ -8,6 +8,7 @@ var screen: Node        # the Screen3D being viewed
 var _bg: ColorRect
 var _img: TextureRect
 var _title: Label
+var _hint: Label
 
 func _ready() -> void:
 	layer = 5
@@ -31,21 +32,25 @@ func _ready() -> void:
 	_title.position = Vector2(30, 12)
 	_title.size = Vector2(900, 30)
 	add_child(_title)
-	var hint := UI.label("Click to use   |   E, Esc or right-click to close", 15, UI.COLOR_MUTED)
-	hint.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	hint.position += Vector2(30, -32)
-	hint.size = Vector2(700, 24)
-	add_child(hint)
+	_hint = UI.label("Click to use   |   E, Esc or right-click to close", 15, UI.COLOR_MUTED)
+	_hint.position = Vector2(30, 680)
+	_hint.size = Vector2(700, 24)
+	add_child(_hint)
 	visible = false
 
 func _process(_d: float) -> void:
 	if not visible:
 		return
 	var right := 30.0
+	for d in get_tree().get_nodes_in_group("decision"):
+		if d.is_showing():
+			right = d.width() + 24.0
+	var bottom := 40.0
 	for t in get_tree().get_nodes_in_group("tutor"):
-		if t.is_showing():
-			right = 470.0
+		bottom = t.used_height() + 34.0
 	_img.offset_right = -right
+	_img.offset_bottom = -bottom
+	_hint.position.y = get_viewport().get_visible_rect().size.y - bottom + 6.0
 
 func is_open() -> bool:
 	return visible

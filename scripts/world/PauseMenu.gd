@@ -21,24 +21,26 @@ func _ready() -> void:
 	v.add_child(UI.label("PAUSED", 30, UI.COLOR_ACCENT))
 	v.add_child(UI.label(MissionState.mission()["name"], 18, UI.COLOR_MUTED))
 	_add(v, "Resume", resume)
-	_add(v, "Restart this mission", func():
+	if LevelFlow.index >= 0:
+		_add(v, "Restart this level", func():
+			_unpause()
+			LevelFlow.restart_level())
+	_add(v, "Restart the whole mission (Level 1)", func():
 		_unpause()
 		MissionState.start_mission(MissionState.mission_id)
-		get_tree().reload_current_scene())
-	_add(v, "Restart the tutor", func():
+		if LevelFlow.index >= 0:
+			LevelFlow.start()
+		else:
+			get_tree().reload_current_scene())
+	_add(v, "Restart the tutor for this level", func():
 		_unpause()
 		MissionState.tutor_enabled = true
-		MissionState.tutor_step = 0
-		MissionState.tutor_done = false
+		MissionState.tutor_steps.erase(LevelFlow.current_id() if LevelFlow.index >= 0 else "launch")
 		get_tree().reload_current_scene())
-	_add(v, "Mission select", func():
-		_unpause()
-		MissionState.open_select = true
-		get_tree().change_scene_to_file("res://scenes/Main.tscn"))
 	_add(v, "Quit to title", func():
 		_unpause()
 		MissionState.open_select = false
-		get_tree().change_scene_to_file("res://scenes/Main.tscn"))
+		LevelFlow.to_title())
 	_add(v, "Quit game", func(): get_tree().quit())
 	_root.visible = false
 

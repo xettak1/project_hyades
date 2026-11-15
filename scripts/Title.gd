@@ -9,6 +9,7 @@ var _t := 0.0
 var _menu: Control
 var _select: Control
 var _help: Control
+var _brief: Control
 
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -22,6 +23,8 @@ func _ready() -> void:
 	ui.add_child(_select)
 	_help = _build_help()
 	ui.add_child(_help)
+	_brief = _build_briefing()
+	ui.add_child(_brief)
 	_show(_select if MissionState.open_select else _menu)
 	MissionState.open_select = false
 
@@ -103,7 +106,7 @@ func _process(delta: float) -> void:
 
 # ---------------------------------------------------------------- menus
 func _show(panel: Control) -> void:
-	for p in [_menu, _select, _help]:
+	for p in [_menu, _select, _help, _brief]:
 		p.visible = (p == panel)
 
 func _full() -> Control:
@@ -217,6 +220,61 @@ func _card(id: String) -> Control:
 func _start(id: String, tutor: bool) -> void:
 	MissionState.start_mission(id)
 	MissionState.tutor_enabled = tutor
-	MissionState.tutor_step = 0
-	MissionState.tutor_done = false
-	get_tree().change_scene_to_file("res://scenes/Lab.tscn")
+	MissionState.tutor_steps = {}
+	_show(_brief)
+
+# ---------------------------------------------------------------- mission briefing
+func _build_briefing() -> Control:
+	var root := _full()
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", FUI.box(Color(0.03, 0.06, 0.12, 0.93), Color(FUI.SKY, 0.4), 12, 22))
+	p.set_anchors_preset(Control.PRESET_FULL_RECT)
+	p.offset_left = 50
+	p.offset_right = -50
+	p.offset_top = 30
+	p.offset_bottom = -30
+	root.add_child(p)
+	var v := FUI.vb(10)
+	p.add_child(v)
+	v.add_child(FUI.t("MISSION BRIEFING · YOU ARE THE MISSION DIRECTOR", 14, FUI.SKY, "mono_semi"))
+	v.add_child(FUI.t("Flood & Crop Watch", 40, FUI.WHITE, "sans_semi"))
+	for line in [
+		"Farmers need timely information about crop health, and floods can wipe out a season of crops in days.",
+		"Satellites can watch the fields from space, but your mission has limited money, mass and power.",
+		"Your job: design and operate a satellite mission that collects useful imagery of farmland, detects flooded areas and gets actionable information to farmers and agricultural scientists."]:
+		var l := FUI.t(line, 18, FUI.TEXT2)
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		v.add_child(l)
+	var m := GameData.mission("flood_watch")
+	v.add_child(FUI.t("Budget $%s M  ·  Mass limit %s kg  ·  Every decision affects the next level" % [str(m["budget"]), str(m["mass_limit"])], 15, FUI.AMBER, "mono_semi"))
+	var row := FUI.hb(12)
+	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(row)
+	var colors := [FUI.RED, FUI.SKY, FUI.GREEN, FUI.AMBER]
+	for i in LevelFlow.LEVELS.size():
+		var lv: Dictionary = LevelFlow.LEVELS[i]
+		var c := PanelContainer.new()
+		c.add_theme_stylebox_override("panel", FUI.box(FUI.CARD, Color(colors[i], 0.5), 10, 14))
+		c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var cv := FUI.vb(6)
+		c.add_child(cv)
+		cv.add_child(FUI.t("LEVEL %d" % lv["n"], 12, colors[i], "mono_semi"))
+		cv.add_child(FUI.t(lv["title"].capitalize(), 20, FUI.WHITE, "sans_semi"))
+		cv.add_child(FUI.t(lv["goal"], 15, colors[i], "sans_med"))
+		var intro := FUI.t(lv["intro"], 14, FUI.TEXT)
+		intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		cv.add_child(intro)
+		row.add_child(c)
+	var lesson := FUI.t("A spacecraft can reach orbit and still fail: without enough power, radio capacity, storage or ground stations, the data never helps anyone.", 15, FUI.MUTED)
+	lesson.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(lesson)
+	var btns := FUI.hb(12)
+	var go := UI.button("BEGIN LEVEL 1 · LAUNCH SEGMENT", 22)
+	go.custom_minimum_size = Vector2(420, 52)
+	go.pressed.connect(LevelFlow.start)
+	btns.add_child(go)
+	var back := UI.button("BACK", 18)
+	back.pressed.connect(func(): _show(_select))
+	btns.add_child(back)
+	v.add_child(btns)
+	return root

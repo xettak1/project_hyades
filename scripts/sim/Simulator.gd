@@ -61,7 +61,7 @@ func _trigger(kind: String) -> void:
 			events.append({"day": day, "title": "Ground station outage",
 				"text": "Your ground station is down for 5 days. Images pile up in storage; if storage fills, new images are lost."})
 		"wheel":
-			if x["pointing"] >= 1.0:
+			if x["pointing"] >= 0.9:
 				events.append({"day": day, "title": "Reaction wheel fault",
 					"text": "One reaction wheel failed, but the precise pointing system has a spare. No effect."})
 			else:
@@ -207,8 +207,8 @@ func _why(req_met: Dictionary, avg_useful: float, c: Dictionary) -> Array:
 		out.append([70, "The battery could not carry the spacecraft through each eclipse (needed %.0f Wh, had %.0f Wh usable), so it kept dropping into safe mode." % [x["need_wh"], x["usable_wh"]]])
 	if end_reason == "drag" and cruise_days == 0:
 		out.append([85, "Air drag ended the mission after %d days instead of %d. A thruster would have kept the orbit up." % [day, planned_days]])
-	if x["pointing"] < 1.0:
-		out.append([40, "Basic pointing meant about %d%% of the data was blurred or off target. Precise pointing makes every image count." % int(100.0 * (1.0 - x["pointing"]))])
+	if x["pointing"] < 0.9:
+		out.append([40, "Your pointing system blurred or missed about %d%% of the images. Precise pointing makes almost every image count." % int(100.0 * (1.0 - x["pointing"]))])
 	if safe_mode_days > 0:
 		out.append([30, "Solar storms put the spacecraft in safe mode for %d day(s)." % safe_mode_days])
 	if c["budget"]["margin"] > 0.5:
