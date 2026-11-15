@@ -54,3 +54,12 @@ func _play_random_music() -> void:
 		return
 	_music_player.stream = stream
 	_music_player.play()
+
+func set_music_volume(volume: float) -> void:
+	var clamped := clampf(volume, 0.0, 1.0)
+	_music_player.volume_db = -80.0 if clamped <= 0.001 else linear_to_db(clamped)
+
+func get_music_volume() -> float:
+	if _music_player.volume_db <= -79.0:
+		return 0.0
+	return db_to_linear(_music_player.volume_db)

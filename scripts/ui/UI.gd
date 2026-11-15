@@ -23,6 +23,13 @@ static func button(text: String, size: int = 18) -> Button:
 	b.text = text
 	b.add_theme_font_size_override("font_size", size)
 	b.custom_minimum_size = Vector2(0, 40)
+	b.add_theme_color_override("font_color", Color(0.9, 0.94, 1.0))
+	b.add_theme_color_override("font_hover_color", Color.WHITE)
+	b.add_theme_color_override("font_pressed_color", Color.WHITE)
+	b.add_theme_stylebox_override("normal", panel_style(Color(0.08, 0.13, 0.23, 0.96), Color(0.3, 0.65, 1.0, 0.55), 1))
+	b.add_theme_stylebox_override("hover", panel_style(Color(0.12, 0.24, 0.4, 0.98), Color(0.3, 0.65, 1.0), 1))
+	b.add_theme_stylebox_override("pressed", panel_style(Color(0.16, 0.3, 0.46, 1.0), Color(0.95, 0.75, 0.25), 1))
+	b.add_theme_stylebox_override("focus", panel_style(Color(0.1, 0.18, 0.3, 1.0), Color(0.95, 0.75, 0.25), 1))
 	return b
 
 static func panel_style(color: Color = COLOR_PANEL, border: Color = Color(0, 0, 0, 0), border_w: int = 0) -> StyleBoxFlat:

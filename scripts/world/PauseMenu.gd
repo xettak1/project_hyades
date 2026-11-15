@@ -20,6 +20,7 @@ func _ready() -> void:
 	p.add_child(v)
 	v.add_child(UI.label("PAUSED", 30, UI.COLOR_ACCENT))
 	v.add_child(UI.label(MissionState.mission()["name"], 18, UI.COLOR_MUTED))
+	_add_volume_control(v)
 	_add(v, "Resume", resume)
 	if LevelFlow.index >= 0:
 		_add(v, "Restart this level", func():
@@ -48,6 +49,26 @@ func _add(v: VBoxContainer, text: String, action: Callable) -> void:
 	var b := UI.button(text)
 	b.pressed.connect(action)
 	v.add_child(b)
+
+func _add_volume_control(v: VBoxContainer) -> void:
+	var heading := UI.label("BACKGROUND MUSIC", 13, UI.COLOR_MUTED)
+	v.add_child(heading)
+	var row := UI.hbox(10)
+	var slider := HSlider.new()
+	slider.min_value = 0.0
+	slider.max_value = 100.0
+	slider.step = 1.0
+	slider.value = AudioManager.get_music_volume() * 100.0
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.custom_minimum_size = Vector2(250, 28)
+	var value_label := UI.label("%d%%" % int(slider.value), 14, UI.COLOR_ACCENT)
+	value_label.custom_minimum_size = Vector2(42, 0)
+	slider.value_changed.connect(func(value: float):
+		AudioManager.set_music_volume(value / 100.0)
+		value_label.text = "%d%%" % int(value))
+	row.add_child(slider)
+	row.add_child(value_label)
+	v.add_child(row)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
