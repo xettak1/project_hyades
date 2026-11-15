@@ -8,6 +8,20 @@ shows up as missing data in Level 4.
 Tested on Godot 4.3 and 4.7.2. Built for a MacBook Pro with 16 GB RAM (all scenes are generated in code,
 plants and trees use MultiMesh, heavy models are used sparingly).
 
+## How to play it
+**Option 1: download a build (no install).** Open the [Releases](https://github.com/xettak1/project_hyades/releases)
+page, download the zip for your system, unzip it and run the game.
+- On a Mac, the first time, right-click the app and choose **Open** (the app is not signed by Apple).
+- On Windows, if SmartScreen appears, click **More info → Run anyway**.
+
+**Option 2: run from the source code.**
+1. Download **Godot 4.3 or newer** (free, no install needed): https://godotengine.org/download
+2. Download this repository (**Code → Download ZIP**) and unzip it, or `git clone` it.
+3. Open Godot, click **Import**, select `project.godot` in this folder, then press **Play** (F5).
+   The first import takes a minute while Godot processes the 3D models.
+
+A mouse and keyboard are needed (see *Controls* below). A full playthrough of the four levels takes about 20–30 minutes.
+
 ## Game flow
 1. **Title screen** (`scenes/Main.tscn`, `scripts/Title.gd`): H.Y.A.D.E.S logo over Earth at sunrise, with an
    astronaut, satellites and the Moon. Menu: **New Game**, **Continue**, **Options**, **Exit**.
@@ -117,3 +131,31 @@ Saved to `user://settings.cfg`; progress to `user://progress.json`.
 - **Textures:** blue metal plate (walls and roof), diamond-plate floor, mission-card images rendered in game.
 - Godot cannot read Draco-compressed `.glb` files; decompress them first (e.g. with gltf-transform).
   Models are loaded by `scripts/world/ModelLib.gd`, which scales any `.glb` to fit.
+
+## Team
+- Kwadwo Addo Adomako
+- Kwame Emmanuel Adi
+- Ntow Emmanuel Akyea
+- Godwin Egyir
+- Solomon Frimpong
+
+## Credits and sources
+**Data.** Every number in `data/tables/*.csv` has its source in the `source` column. Main sources:
+NASA (LRO, PDS, NSSDC archive, NASA Small Spacecraft State of the Art), ESA eoPortal (Planet Dove, LRO),
+the ANDES 6U CubeSat platform (UNLP), EnduroSat, CubeSatShop, satsearch, SatCatalog, WMO OSCAR,
+ICEYE, Arizona State University (LROC), and SpaceNexus and New Space Economy for launch prices.
+Values marked *estimate* or *game value* in the tables are our own, chosen to keep the game balanced.
+
+**3D models.** NASA 3D Resources (https://science.nasa.gov/3d-resources/). Plants from Poly Haven, CC0
+(https://polyhaven.com/a/weed_plant_02, https://polyhaven.com/a/searsia_lucida, https://polyhaven.com/a/tree_small_02).
+
+**Textures.** Poly Haven, CC0 (https://polyhaven.com/textures).
+
+**Fonts.** Inter (https://rsms.me/inter/) and JetBrains Mono (https://www.jetbrains.com/lp/mono/), both SIL Open Font
+License (licence files in `assets/fonts`). Brogame (game display font).
+
+**Tools.** Godot Engine 4, GDScript, Blender, glTF-Transform, Python with trimesh, Git and GitHub.
+Claude (Anthropic) was used as a coding assistant.
+
+Made for the NASA International Space Apps Challenge 2026.
+
