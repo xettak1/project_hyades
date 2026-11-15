@@ -23,6 +23,7 @@ config/features=PackedStringArray("4.7")
 GameData="*res://scripts/autoload/GameData.gd"
 MissionState="*res://scripts/autoload/MissionState.gd"
 LevelFlow="*res://scripts/autoload/LevelFlow.gd"
+AudioManager="*res://scripts/autoload/AudioManager.gd"
 
 [display]
 

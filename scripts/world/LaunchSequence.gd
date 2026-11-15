@@ -18,6 +18,7 @@ var _alt := 0.0
 var _vel := 0.0
 
 func start() -> void:
+	AudioManager.play_launch()
 	_sky = lab.outdoor["sky"]
 	_env = lab.outdoor["env"]
 	_sky_top = _sky.sky_top_color
@@ -88,6 +89,7 @@ func _finish() -> void:
 	if _done:
 		return
 	_done = true
+	AudioManager.resume_music()
 	LevelFlow.complete(results)
 
 func _input(event: InputEvent) -> void:
