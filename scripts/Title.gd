@@ -4,6 +4,7 @@ extends Node3D
 var _cam: Camera3D
 var _earth: MeshInstance3D
 var _globe: Node3D
+var _moon: Node3D
 var _sat: Node3D
 var _t := 0.0
 var _menu: Control
@@ -67,7 +68,10 @@ func _build_space() -> void:
 	_sat = ModelLib.fit("sc_cubesat", 0.5, "center")
 	if _sat:
 		add_child(_sat)
-	add_child(PartModels.ball(0.8, PartModels.mat(Color(0.65, 0.65, 0.62), 0.0, 0.95), Vector3(-6, 2.5, -9)))
+	_moon = ModelLib.fit("moon", 1.6, "center")
+	if _moon:
+		_moon.position = Vector3(-6, 2.5, -9)
+		add_child(_moon)
 
 	# Stars
 	var mm := MultiMesh.new()
@@ -97,6 +101,8 @@ func _process(delta: float) -> void:
 	_earth.rotate_y(delta * 0.08)
 	if _globe:
 		_globe.rotate_y(delta * 0.08)
+	if _moon:
+		_moon.rotate_y(delta * 0.05)
 	if _sat:
 		var a := _t * 0.25
 		_sat.position = Vector3(2.5 + cos(a) * 4.0, -0.5 + sin(a) * 1.2, sin(a) * 4.0)
