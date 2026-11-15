@@ -77,8 +77,8 @@ func _ready() -> void:
 	_text.scroll_active = false
 	_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_text.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_text.add_theme_font_override("normal_font", FUI.font("Inter-Medium"))
-	_text.add_theme_font_override("bold_font", FUI.font("Inter-SemiBold"))
+	_text.add_theme_font_override("normal_font", FUI.font("brogame"))
+	_text.add_theme_font_override("bold_font", FUI.font("brogame"))
 	_text.add_theme_font_size_override("normal_font_size", 19)
 	_text.add_theme_font_size_override("bold_font_size", 19)
 	_text.mouse_filter = Control.MOUSE_FILTER_IGNORE

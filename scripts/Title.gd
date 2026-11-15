@@ -301,7 +301,7 @@ func _toggle(v: VBoxContainer, label: String, value: bool, on_change: Callable) 
 	var c := CheckButton.new()
 	c.text = label
 	c.button_pressed = value
-	c.add_theme_font_override("font", FUI.font("Inter-Medium"))
+	c.add_theme_font_override("font", FUI.font("brogame"))
 	c.add_theme_font_size_override("font_size", 18)
 	c.add_theme_color_override("font_color", CREAM)
 	c.add_theme_color_override("font_hover_color", Color.WHITE)

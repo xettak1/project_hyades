@@ -23,7 +23,7 @@ func _init(label: String = "", size_px := Vector2(380, 46)) -> void:
 
 static func slanted_font() -> FontVariation:
 	var f := FontVariation.new()
-	f.base_font = FUI.font("Inter-SemiBold")
+	f.base_font = FUI.font("brogame")
 	f.variation_transform = Transform2D(Vector2(1, 0), Vector2(-0.22, 1), Vector2.ZERO)  # italic slant
 	f.spacing_glyph = 2
 	return f

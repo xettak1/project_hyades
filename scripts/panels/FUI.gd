@@ -1,7 +1,7 @@
 class_name FUI
 extends RefCounted
 ## "Flight Ops" design system, matched to the Google Stitch design:
-## dark slate cards, Inter for labels, JetBrains Mono for every number.
+## dark slate cards, Brogame for display text, JetBrains Mono for every number.
 
 const BG := Color("#080d1a")
 const HEADER := Color("#0b1222")
@@ -32,9 +32,9 @@ static func font(name: String) -> Font:
 static func t(text: String, size: int, color: Color = TEXT, kind: String = "sans") -> Label:
 	var l := Label.new()
 	l.text = text
-	var f := {"sans": "Inter-Regular", "sans_med": "Inter-Medium", "sans_semi": "Inter-SemiBold",
+	var f := {"sans": "brogame", "sans_med": "brogame", "sans_semi": "brogame",
 		"mono": "JetBrainsMono-Regular", "mono_med": "JetBrainsMono-Medium", "mono_semi": "JetBrainsMono-SemiBold"}
-	l.add_theme_font_override("font", font(f.get(kind, "Inter-Regular")))
+	l.add_theme_font_override("font", font(f.get(kind, "brogame")))
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", color)
 	return l
@@ -126,7 +126,7 @@ static func bar(fraction: float, color: Color, h: float = 8.0) -> ProgressBar:
 static func button(text: String, tint: Color = Color(0, 0, 0, 0)) -> Button:
 	var b := Button.new()
 	b.text = text
-	b.add_theme_font_override("font", font("Inter-Medium"))
+	b.add_theme_font_override("font", font("brogame"))
 	b.add_theme_font_size_override("font_size", 13)
 	var tinted := tint.a > 0.0
 	var base := Color(tint.r, tint.g, tint.b, 0.10) if tinted else Color("#1e293b")

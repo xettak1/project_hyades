@@ -13,6 +13,7 @@ const COLOR_MUTED := Color(0.65, 0.70, 0.80)
 static func label(text: String, size: int = 16, color: Color = Color.WHITE) -> Label:
 	var l := Label.new()
 	l.text = text
+	l.add_theme_font_override("font", preload("res://assets/fonts/brogame.ttf"))
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", color)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -21,6 +22,7 @@ static func label(text: String, size: int = 16, color: Color = Color.WHITE) -> L
 static func button(text: String, size: int = 18) -> Button:
 	var b := Button.new()
 	b.text = text
+	b.add_theme_font_override("font", preload("res://assets/fonts/brogame.ttf"))
 	b.add_theme_font_size_override("font_size", size)
 	b.custom_minimum_size = Vector2(0, 40)
 	b.add_theme_color_override("font_color", Color(0.9, 0.94, 1.0))

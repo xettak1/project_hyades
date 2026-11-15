@@ -110,7 +110,7 @@ func _draw() -> void:
 		draw_arc(p, r, 0, TAU, 48, Color(FUI.SKY, 0.5), 1.0, true)
 		draw_circle(p, 3.5, FUI.SKY)
 		var active: bool = st.get("active", false)
-		draw_string(_font("Inter-Medium"), p + Vector2(9, -4), st["name"], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, FUI.TEXT2 if active else FUI.MUTED)
+		draw_string(_font("brogame"), p + Vector2(9, -4), st["name"], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, FUI.TEXT2 if active else FUI.MUTED)
 		draw_string(_font("JetBrainsMono-Regular"), p + Vector2(9, 10), st.get("status", ""), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, FUI.GREEN if active else FUI.DIM)
 	# Tracks: previous rev (muted dashed), current (solid accent), next (faint dashed)
 	_track(t - period_s * 1.5, t - period_s * 0.5, Color("#334155"), 1.2, true)
@@ -140,7 +140,7 @@ func _draw() -> void:
 		badge.position.y = p0.y + 8
 	draw_rect(badge, Color("#0f172a"))
 	draw_rect(badge, Color("#334155"), false, 1.0)
-	draw_string(_font("Inter-SemiBold"), badge.position + Vector2(8, 14), sc_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, FUI.WHITE)
+	draw_string(_font("brogame"), badge.position + Vector2(8, 14), sc_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, FUI.WHITE)
 	draw_string(_font("JetBrainsMono-Regular"), badge.position + Vector2(8, 28), sc_mode, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, FUI.GREEN)
 
 func _track(t0: float, t1: float, color: Color, width: float, dashed: bool) -> void:
