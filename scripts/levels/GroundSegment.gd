@@ -125,11 +125,15 @@ func _build_level() -> void:
 	MissionState.set_live("received_gb", 0.0)
 	MissionState.set_live("station", "3 dishes, 1 site")
 	var hz := R.z / 2.0
-	var obj := preload("res://scripts/panels/ObjectivePanel.gd").new()
-	obj.info = {"goal": "Get the data home",
-		"story": "The satellite only talks to us while it flies over the station. This month's passes can carry %.1f GB, and there are %.1f GB waiting onboard. Decide what comes down first." % [capacity, onboard],
-		"decisions": ["Priority: flood imagery first, or crop-health imagery first", "Start the pass and watch the link", "What stays in space if the link is too slow"]}
-	screen("Objective", "OBJECTIVE", Vector2(3.0, 1.8), Vector2i(1000, 600), Vector3(-R.x / 2.0 + 0.06, 2.1, 0.5), 90.0, obj)
+	# Station equipment: tracking and window on the left wall, the downlink (bottleneck) on the right
+	var specs := [[GroundInstruments.Tracking, "SIGNAL & ANTENNA TRACKING", "Antenna Tracking", Vector3(-R.x / 2.0 + 0.14, 2.05, -1.55), 90.0, Vector2(2.7, 1.62)],
+		[GroundInstruments.CommWindow, "COMMUNICATION WINDOW", "Communication Window", Vector3(-R.x / 2.0 + 0.14, 2.05, 1.75), 90.0, Vector2(2.7, 1.62)],
+		[GroundInstruments.Downlink, "DATA DOWNLINK", "Data Downlink", Vector3(R.x / 2.0 - 0.14, 2.05, 0.0), -90.0, Vector2(3.5, 2.0)]]
+	for eq in specs:
+		var ssz: Vector2 = eq[5]
+		var px := Vector2i(int(880 * ssz.x / 2.7), int(880 * ssz.y / 2.7))
+		var d = screen(eq[2], eq[1], ssz, px, eq[3], eq[4], null)
+		d.set_display(eq[0].new())
 	spawn = Vector3(0, 0.1, hz - 2.6)
 	# Priority and pass buttons on the middle desk
 	prio_buttons["floods"] = button("PRIORITY\nFLOODS", FUI.SKY, set_priority.bind("floods"), Vector3(-1.0, 0.85, -hz + 2.6))
@@ -167,6 +171,13 @@ func _process(delta: float) -> void:
 		pv.rotation.y = lerp_angle(pv.rotation.y, atan2(-to.x, -to.z), 0.08)
 	var link_on := k > 0.08 and k < 0.92
 	var top: Vector3 = main.global_position + Vector3(0, dishes[0][1] * 0.75, 0)
+	# Antenna pointing for the tracking display (azimuth from north = -Z, elevation above horizon)
+	var to_sat := sat.global_position - top
+	var lv := MissionState.live
+	lv["pass_k"] = k
+	lv["link_on"] = link_on
+	lv["sat_el"] = rad_to_deg(atan2(to_sat.y, Vector2(to_sat.x, to_sat.z).length()))
+	lv["sat_az"] = fposmod(rad_to_deg(atan2(to_sat.x, -to_sat.z)), 360.0)
 	beam.visible = link_on
 	if link_on:
 		beam.global_position = (top + sat.global_position) / 2.0

@@ -133,11 +133,17 @@ func _tex_mat(path: String, scale: float, tint: Color, metal: float, rough: floa
 func _solid(size: Vector3, pos: Vector3, m: Material) -> StaticBody3D:
 	return RoomKit.solid(self, size, pos, m)
 
-func _sign(text: String, pos: Vector3, yaw: float, size: int = 64, color: Color = Color(-1, 0, 0)) -> Label3D:
+## A painted wall sign. max_w (metres) shrinks the text so it never runs past its own space
+## (e.g. a shelf sign never reaches the next shelf or a screen).
+func _sign(text: String, pos: Vector3, yaw: float, size: int = 64, color: Color = Color(-1, 0, 0), max_w: float = 0.0) -> Label3D:
 	var l := Label3D.new()
 	l.text = text
 	l.font_size = size
 	l.pixel_size = 0.005
+	if max_w > 0.0:
+		var w := l.font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x * l.pixel_size if l.font else ThemeDB.fallback_font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x * l.pixel_size
+		if w > max_w:
+			l.pixel_size *= max_w / w
 	l.outline_size = 10
 	l.modulate = env["accent"] if color.r < 0.0 else color
 	l.position = pos
@@ -146,10 +152,10 @@ func _sign(text: String, pos: Vector3, yaw: float, size: int = 64, color: Color 
 	return l
 
 func _build_room() -> void:
-	# Worn industrial look: diamond-plate floor, rusty painted metal walls.
+	# Worn industrial look: diamond-plate floor, blue painted metal-plate walls and roof.
 	var floor_m := _tex_mat(TEX_FLOOR, 0.45, Color(1, 1, 1), 0.55, 0.6, env["floor"])
-	var wall_m := _tex_mat(TEX_WALL, 0.28, Color(1.25, 1.25, 1.25), 0.25, 0.75, env["wall"])
-	var ceil_m := _tex_mat(TEX_WALL, 0.2, Color(0.7, 0.7, 0.7), 0.25, 0.8, env["wall"])
+	var wall_m := _tex_mat(TEX_WALL, 0.28, Color(1.45, 1.45, 1.45), 0.45, 0.5, env["wall"])
+	var ceil_m := _tex_mat(TEX_WALL, 0.22, Color(1.05, 1.05, 1.05), 0.45, 0.55, env["wall"])
 	_solid(Vector3(R.x, 0.2, R.z), Vector3(0, -0.1, 0), floor_m)
 	_solid(Vector3(R.x, 0.2, R.z), Vector3(0, R.y + 0.1, 0), ceil_m)
 	_solid(Vector3(R.x, R.y, 0.2), Vector3(0, R.y / 2, -hz - 0.1), wall_m)
@@ -203,13 +209,20 @@ func _build_exhibits() -> void:
 		m.position = pos + Vector3(0, 0.3, 0)
 		m.rotation_degrees.y = ex[4]
 		add_child(m)
+		# museum plaque on the front face of the plinth, so the model can never hide it
+		var front := pos + Vector3(0, 0.15, foot / 2.0 + 0.012)
+		add_child(PartModels.box(Vector3(foot * 0.92, 0.2, 0.01), PartModels.mat(Color(0.06, 0.07, 0.09), 0.6, 0.35), front))
 		var plaque := Label3D.new()
 		plaque.text = ex[5]
-		plaque.font_size = 28
-		plaque.pixel_size = 0.004
-		plaque.outline_size = 8
-		plaque.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
-		plaque.position = pos + Vector3(0, 0.75, 0)
+		plaque.font = FUI.font("Inter-SemiBold")
+		plaque.font_size = 40
+		plaque.outline_size = 0
+		plaque.modulate = Color(0.92, 0.94, 0.97)
+		plaque.pixel_size = 0.0022
+		var tw: float = plaque.font.get_string_size(ex[5], HORIZONTAL_ALIGNMENT_LEFT, -1, 40).x * plaque.pixel_size
+		if tw > foot * 0.86:
+			plaque.pixel_size *= foot * 0.86 / tw
+		plaque.position = front + Vector3(0, 0, 0.008)
 		add_child(plaque)
 
 # ---------------------------------------------------------------- shelves
@@ -237,7 +250,7 @@ func _build_shelves() -> void:
 				add_child(PartModels.box(Vector3(1.2 * ps + 0.02, 0.12, tlen / 8 * 0.5), PartModels.mat(Color(1, 0.8, 0.1) if s % 2 == 0 else Color(0.05, 0.05, 0.05)), Vector3(x, 0.72, z - tlen / 2 + tlen / 8 * (s + 0.5))))
 		var tight := side < 0 and left_n == 5
 		var title: String = CAT_SHORT.get(cat, cat.to_upper()) if tight else CAT_TITLES.get(cat, cat.to_upper())
-		_sign(title, Vector3(side * (hx - 0.05), 2.4 + (R.y - 6.0) * 0.3, z), -90.0 * side, 46 if tight else 56)
+		_sign(title, Vector3(side * (hx - 0.05), 2.4 + (R.y - 6.0) * 0.3, z), -90.0 * side, 46 if tight else 56, Color(-1, 0, 0), tlen * 0.95)
 		var ids: Array = GameData.parts_for(MissionState.mission_id)[cat].keys()
 		for i in ids.size():
 			var item := PartItem.new()
@@ -272,17 +285,64 @@ func _build_wall_screens() -> void:
 	brief.setup(Vector2(3.9, 2.6) * k, Vector2i(900, 600), "BRIEFING", env["accent"], "Briefing")
 	brief.set_panel(preload("res://scripts/panels/BriefingPanel.gd").new())
 
-	var res := Screen3D.new()
-	res.position = Vector3(0, y + 0.4 * k, -hz + 0.05)
-	add_child(res)
-	res.setup(Vector2(2.7, 2.9) * k, Vector2i(500, 540), "RESOURCES", env["accent"], "Resources")
-	res.set_panel(preload("res://scripts/ui/Dashboard.gd").new())
+	_build_launch_console(y)
 
 	var adv := Screen3D.new()
 	adv.position = Vector3(5.6 * k, y, -hz + 0.05)
 	add_child(adv)
 	adv.setup(Vector2(3.9, 2.6) * k, Vector2i(900, 600), "ADVISORS", env["accent"], "Advisors")
 	adv.set_panel(preload("res://scripts/panels/AdvisorsPanel.gd").new())
+
+## LAUNCH CONTROL CONSOLE: four separate displays (budget, payload, rocket status, mission overview)
+## in a 2x2 bank on the front wall, with a control desk underneath.
+func _build_launch_console(y: float) -> void:
+	var sz := Vector2(1.75, 1.1) * k
+	var px := Vector2i(900, 566)
+	var dx := 0.98 * k
+	var rows := [y + 0.95 * k, y - 0.55 * k]
+	var specs := [
+		[LaunchInstruments.Budget, "MISSION BUDGET", "Mission Budget", -dx, rows[0]],
+		[LaunchInstruments.Payload, "PAYLOAD MONITOR", "Payload Monitor", dx, rows[0]],
+		[LaunchInstruments.Rocket, "ROCKET STATUS", "Rocket Status", -dx, rows[1]],
+		[LaunchInstruments.Overview, "MISSION OVERVIEW", "Mission Overview", dx, rows[1]]]
+	for sp in specs:
+		var scr := Screen3D.new()
+		scr.position = Vector3(sp[3], sp[4], -hz + 0.12)
+		add_child(scr)
+		scr.setup(sz, px, sp[1], env["accent"], sp[2])
+		scr.set_display(sp[0].new())
+	# The console desk: sloped control panel with guarded switches and indicator buttons
+	var desk_m := PartModels.mat(Color(0.14, 0.15, 0.17), 0.7, 0.35)
+	var top_m := PartModels.mat(Color(0.06, 0.065, 0.075), 0.3, 0.6)
+	var dz := -hz + 0.75
+	_solid(Vector3(4.4 * k, 0.95, 1.0), Vector3(0, 0.475, dz), desk_m)
+	var slope := PartModels.box(Vector3(4.3 * k, 0.04, 0.62), top_m, Vector3(0, 1.02, dz + 0.05))
+	slope.rotation_degrees.x = 18.0
+	add_child(slope)
+	var cols := [Color(0.2, 1.0, 0.45), Color(1.0, 0.75, 0.2), Color(0.3, 0.75, 1.0), Color(1.0, 0.3, 0.3)]
+	for i in 14:
+		var bx := -1.9 * k + i * 0.29 * k
+		var c: Color = cols[i % cols.size()]
+		var bm := PartModels.mat(c, 0.0, 0.4, 1.6 if i % 3 != 1 else 0.2)
+		var btn := PartModels.box(Vector3(0.09, 0.03, 0.07), bm, Vector3(bx, 1.06, dz - 0.05))
+		btn.rotation_degrees.x = 18.0
+		add_child(btn)
+		# guarded toggle switches on the lower row
+		if i % 2 == 0:
+			var sw := PartModels.cyl(0.012, 0.012, 0.08, PartModels.mat(Color(0.85, 0.86, 0.88), 0.9, 0.25), Vector3(bx + 0.12, 1.02, dz + 0.17), Vector3(-25, 0, 0))
+			add_child(sw)
+			var guard := PartModels.box(Vector3(0.07, 0.035, 0.09), PartModels.mat(Color(0.9, 0.15, 0.1), 0.2, 0.4), Vector3(bx + 0.12, 1.0, dz + 0.2))
+			guard.rotation_degrees.x = 18.0
+			add_child(guard)
+	var plate := Label3D.new()
+	plate.text = "LAUNCH CONTROL CONSOLE"
+	plate.font = FUI.font("Inter-SemiBold")
+	plate.font_size = 48
+	plate.pixel_size = 0.0024
+	plate.outline_size = 0
+	plate.modulate = Color(0.95, 0.62, 0.22)
+	plate.position = Vector3(0, 0.62, dz + 0.505)
+	add_child(plate)
 
 # ---------------------------------------------------------------- console
 func _console_button(text: String, color: Color, action: Callable, pos: Vector3, big := false) -> Node3D:
@@ -297,12 +357,11 @@ func _build_console() -> void:
 	var z0 := _slot_z(3)
 	var dx := hx - 0.7
 	_solid(Vector3(1.2, 1.0, 3.6), Vector3(dx, 0.5, z0), PartModels.mat(Color(0.18, 0.2, 0.25), 0.5, 0.4))
-	_sign("MISSION CONSOLE", Vector3(hx - 0.05, 3.6, z0), -90.0, 56)
 	var scr := Screen3D.new()
 	scr.position = Vector3(hx - 0.05, 2.25, z0)
 	scr.rotation_degrees.y = -90.0
 	add_child(scr)
-	scr.setup(Vector2(2.7, 1.89), Vector2i(800, 560), "", UI.COLOR_ACCENT, "Mission Console")
+	scr.setup(Vector2(2.7, 1.89), Vector2i(800, 560), "MISSION CONSOLE", UI.COLOR_ACCENT, "Mission Console")
 	console_panel = preload("res://scripts/panels/ConsolePanel.gd").new()
 	scr.set_panel(console_panel)
 
