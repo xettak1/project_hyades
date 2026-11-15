@@ -1,0 +1,35 @@
+{
+ "_readme": "Short text for the Decision card (one advantage, one disadvantage per option). Numbers come from data/tables/parts.csv; edit only the wording here.",
+ "payload": {
+  "simple": {"name": "Standard crop camera", "pro": "Small files that are easy to send home.", "con": "Less detail about crop health."},
+  "advanced": {"name": "High-detail crop camera", "pro": "Spots crop disease a normal camera misses.", "con": "Huge files that fill storage and the radio link."}
+ },
+ "solar": {
+  "simple": {"name": "Body solar panels", "pro": "Light, cheap and nothing can break.", "con": "Makes only a little power."},
+  "advanced": {"name": "Unfolding solar wings", "pro": "About twice the power.", "con": "Heavier and costs more."}
+ },
+ "battery": {
+  "simple": {"name": "Small battery", "pro": "Light and cheap.", "con": "May run flat in Earth's shadow."},
+  "advanced": {"name": "Large battery", "pro": "Keeps everything running in the dark.", "con": "Heavier and costs more."}
+ },
+ "comms": {
+  "simple": {"name": "Basic radio (S-band)", "pro": "Cheap, light and low power.", "con": "Slow: big data gets stuck in space."},
+  "advanced": {"name": "Fast radio (X-band)", "pro": "Sends about 15 times more data home.", "con": "Uses more power and costs more."}
+ },
+ "computer": {
+  "simple": {"name": "Standard computer", "pro": "Low power and cheap.", "con": "Less memory for pictures."},
+  "advanced": {"name": "Smart computer", "pro": "Sends only the useful parts of each picture.", "con": "Uses almost 4 W of power."}
+ },
+ "adcs": {
+  "simple": {"name": "Basic pointing", "pro": "Cheap and light.", "con": "Many pictures come out blurry."},
+  "advanced": {"name": "Precise pointing", "pro": "Almost every picture is sharp.", "con": "Costs more and uses more power."}
+ },
+ "propulsion": {
+  "simple": {"name": "Small thruster", "pro": "Light and low power.", "con": "Only small orbit corrections."},
+  "advanced": {"name": "Ion thruster", "pro": "Holds our orbit for months.", "con": "Needs about 10 W while firing."}
+ },
+ "thermal": {
+  "simple": {"name": "Insulating blankets", "pro": "Needs no power at all.", "con": "The battery gets cold in the shadow."},
+  "advanced": {"name": "Heaters", "pro": "Keeps the battery warm and healthy.", "con": "Uses about 4 W of power."}
+ }
+}

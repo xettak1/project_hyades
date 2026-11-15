@@ -1,0 +1,7 @@
+rocket_id,orbit_id,capacity_kg,source
+spacex_rideshare,leo_550,200,estimate: no hard cap published; the price rises per kg. Mid-inclination orbits are on Bandwagon missions priced individually
+spacex_rideshare,sso_700,200,estimate: no hard cap published
+rocketlab_electron,leo_550,300,300 kg to LEO: https://spacenexus.us/guide/cost-to-launch
+rocketlab_electron,sso_700,200,200 kg to SSO: data brief; not re-verified
+falcon9,lunar_50,3000,"estimate: no published trans-lunar figure for Falcon 9; assumed above LRO's 1,916 kg"
+falcon_heavy,lunar_50,16800,"about 16,800 kg to trans-lunar injection: https://spacenexus.us/rockets/falcon-heavy (another source says SpaceX publishes no such figure)"
