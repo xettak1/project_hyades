@@ -38,6 +38,9 @@ var overflow_gb := 0.0
 var storage_gb := 0.0
 var scanned: Dictionary = {}
 var scans_done := 0
+# Power model (fed to the instruments and the left panel): sunlight / eclipse around each orbit
+var orbit_ang := 0.0
+var battery_wh := -1.0
 
 func _configure() -> void:
 	R = Vector3(9, 3.4, 9)
@@ -82,7 +85,6 @@ func _build_world() -> void:
 		inst.scale = Vector3.ONE * 1.6
 		inst.position = Vector3(-2.6, 0.5, -hz + 0.9)
 		add_child(inst)
-	RoomKit.sign(self, "IMAGER: " + MissionState.part_of("payload").get("name", "").split(" (")[0], Vector3(-2.6, 1.45, -hz + 0.9), 0.0, 22, FUI.SKY)
 	RoomKit.sign(self, "FLOOD & CROP WATCH · %s" % MissionState.orbit()["name"].split(" (")[0].to_upper(), Vector3(0, R.y - 0.18, -hz + 0.02), 0.0, 30, FUI.SKY)
 
 	# Earth below: 1 unit = 10 km, satellite 700 km up. Africa faces the window.
@@ -147,7 +149,9 @@ func _build_regions() -> void:
 		lab.font_size = 34
 		lab.outline_size = 10
 		lab.no_depth_test = true
-		lab.position = Vector3(0, 4.0, -8.0)
+		# each name sits on its own side of its region, so neighbouring names never overlap
+		var off: Vector2 = {"volta": Vector2(-2.0, 11.0), "niger_delta": Vector2(-7.0, -9.5), "benue": Vector2(9.0, 10.0), "chad": Vector2(6.0, -9.5)}.get(r["id"], Vector2(0, -8))
+		lab.position = Vector3(off.x, 4.0, off.y)
 		holder.add_child(lab)
 		# Cloud puff (shown when the region is cloudy on this pass)
 		var puff := Node3D.new()
@@ -172,7 +176,7 @@ func _build_level() -> void:
 	var hz := R.z / 2.0
 	var panel := preload("res://scripts/panels/ObservationPanel.gd").new()
 	panel.room = self
-	screen("Observation Console", "OBSERVATION CONSOLE", Vector2(2.9, 1.9), Vector2i(1150, 750), Vector3(-hx + 0.06, 1.75, -0.7), 90.0, panel)
+	screen("Observation Console", "OBSERVATION CONSOLE", Vector2(2.9, 1.9), Vector2i(900, 590), Vector3(-hx + 0.06, 1.75, -0.7), 90.0, panel)
 	# Live satellite camera
 	cam = Camera3D.new()
 	cam.fov = 24.0
@@ -193,11 +197,14 @@ func _build_level() -> void:
 	ov.add_child(scanline)
 	var cs = screen("Satellite Camera", "SATELLITE CAMERA", Vector2(2.6, 1.62), Vector2i(960, 600), Vector3(hx - 0.06, 1.75, -0.7), -90.0, null)
 	cs.set_camera(cam, ov)
-	var obj := preload("res://scripts/panels/ObjectivePanel.gd").new()
-	obj.info = {"goal": "Observe the farmland",
-		"story": "Four farming regions below us flood often. Photograph them while they pass beneath the satellite. Each pass is a chance; clouds, power and memory limit what we bring home.",
-		"decisions": ["Which region to photograph on each pass", "Whether to risk a pass when clouds are thick", "How much memory to fill before we can send data home (Level 3)"]}
-	screen("Objective", "OBJECTIVE", Vector2(3.2, 1.9), Vector2i(1000, 600), Vector3(0, 1.9, hz - 0.06), 180.0, obj)
+	ov.add_child(SpaceInstruments.CameraOverlay.new())
+	# Flight displays on the back wall: power, data & instruments, orbital position
+	var specs := [[SpaceInstruments.Power, "ELECTRICAL POWER", "Power System", -2.6],
+		[SpaceInstruments.Data, "DATA & INSTRUMENTS", "Data and Instruments", 0.0],
+		[SpaceInstruments.Orbit, "ORBITAL POSITION", "Orbital Position", 2.6]]
+	for sp in specs:
+		var d = screen(sp[2], sp[1], Vector2(2.35, 1.48), Vector2i(880, 556), Vector3(sp[3], 1.85, hz - 0.12), 180.0, null)
+		d.set_display(sp[0].new())
 	spawn = Vector3(0, 0.1, 2.0)
 
 # ======================================================================= state helpers (used by the console)
@@ -302,8 +309,13 @@ func _process(delta: float) -> void:
 		m[1].modulate = FUI.GREEN if sel else (Color(1, 1, 1) if vis else Color(0.6, 0.6, 0.6))
 		puffs[r["id"]].visible = cloud_now(r["id"]) > CLOUD_LIMIT
 	fast = not any
+	var dang := 0.0
 	if not scanning:
-		pivot.rotate(Vector3(1, 0, 0), -(FAST_SPEED if fast else ORBIT_SPEED) * delta)
+		dang = (FAST_SPEED if fast else ORBIT_SPEED) * delta
+		pivot.rotate(Vector3(1, 0, 0), -dang)
+	else:
+		dang = ORBIT_SPEED * 0.25 * delta    # time still passes while scanning
+	_power_step(dang)
 	_update_camera(delta)
 	if scanning:
 		scan_t += delta
@@ -319,6 +331,36 @@ func _process(delta: float) -> void:
 		scanline.position.y = fmod(scan_t * 420.0, 600.0)
 		if scan_t >= SCAN_TIME:
 			_scan_done()
+
+## Battery / solar / load around the orbit, from the parts you chose in Level 1.
+func _power_step(dang: float) -> void:
+	orbit_ang += dang
+	var o := MissionState.orbit()
+	var x: Dictionary = MissionState.compute()["extra"]
+	var ef := clampf(float(o.get("eclipse_min", 30.0)) / maxf(float(o.get("period_min", 95.0)), 1.0), 0.0, 0.45)
+	var ph := fposmod(orbit_ang, TAU)
+	var eclipse := absf(wrapf(ph - PI, -PI, PI)) < PI * ef
+	var gen := 0.0 if eclipse else float(x["gen_avg"]) / maxf(1.0 - ef, 0.1)
+	var pay := float(MissionState.part_of("payload").get("power", 0.0))
+	var load := float(x["load_w"]) + (pay if scanning else 0.0)
+	var cap := maxf(float(MissionState.part_of("battery").get("energy", 10.0)), 0.1)
+	if battery_wh < 0.0:
+		battery_wh = cap
+	var dt_h := dang / TAU * float(o.get("period_min", 95.0)) / 60.0
+	battery_wh = clampf(battery_wh + (gen - load) * dt_h, 0.0, cap)
+	var lv := MissionState.live
+	lv["battery_frac"] = battery_wh / cap
+	lv["battery_wh"] = battery_wh
+	lv["battery_cap_wh"] = cap
+	lv["gen_now"] = gen
+	lv["load_now"] = load
+	lv["eclipse"] = eclipse
+	lv["orbit_phase"] = ph / TAU
+	# Sub-satellite point (lat, lon) from the real 3D geometry
+	if earth and earth.spin:
+		var d: Vector3 = earth.spin.to_local(sat_pos).normalized()
+		lv["sub_lat"] = rad_to_deg(asin(clampf(d.y, -1.0, 1.0)))
+		lv["sub_lon"] = rad_to_deg(atan2(-d.x, -d.z))
 
 func _update_camera(_delta: float) -> void:
 	var target_id := selected

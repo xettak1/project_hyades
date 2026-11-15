@@ -30,6 +30,7 @@ var _cam: Camera3D
 
 var _space: Node3D
 var _earth: Node3D
+var _earth_model: Node3D
 var _space_sun: DirectionalLight3D
 var _sat: Node3D
 var _beam: MeshInstance3D
@@ -79,9 +80,43 @@ func _build_space() -> void:
 	_space.add_child(_space_sun)
 	_space_sun.look_at_from_position(Vector3.ZERO, Vector3(0.75, -0.15, -0.65), Vector3.UP)
 	Outdoor.stars(_space, 1400, 3000.0)
-	_earth = preload("res://scripts/world/EarthGlobe.gd").new()
+	# Earth: the 3D Earth model (its daylight is painted into the texture, centred on Africa),
+	# turned so Africa faces the camera, with a soft blue atmosphere around the edge.
+	_earth = Node3D.new()
 	_space.add_child(_earth)
-	_earth.call_deferred("face", 11.0, 2.0, Vector3(0, 0, 1), Vector3(0, 1, 0))
+	var africa := Vector3(1.0, 0.45, -0.7).normalized()      # where Africa lies on the model
+	_earth.basis = Basis(Quaternion(africa, Vector3(0, 0, 1)))
+	_earth_model = ModelLib.fit("earth_intro", 637.1 * 2.0, "center")
+	if _earth_model == null:
+		_earth_model = PartModels.ball(637.1, PartModels.mat(Color(0.2, 0.4, 0.8)))
+	for mi in _earth_model.find_children("*", "MeshInstance3D", true, false):
+		var src: Material = mi.mesh.surface_get_material(0)
+		if src is StandardMaterial3D:
+			var m: StandardMaterial3D = src.duplicate()
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			m.albedo_color = Color(1.25, 1.25, 1.25)
+			mi.material_override = m
+	_earth.add_child(_earth_model)
+	var atmo := MeshInstance3D.new()
+	var sm := SphereMesh.new()
+	sm.radius = 637.1 * 1.035
+	sm.height = 637.1 * 2.07
+	sm.radial_segments = 64
+	sm.rings = 32
+	atmo.mesh = sm
+	var sh := Shader.new()
+	sh.code = """shader_type spatial;
+render_mode unshaded, blend_add, cull_back, depth_draw_never;
+void fragment() {
+	float rim = 1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0);
+	float a = pow(rim, 3.0);
+	ALBEDO = vec3(0.35, 0.65, 1.0) * a * 1.6;
+	ALPHA = a;
+}"""
+	var amat := ShaderMaterial.new()
+	amat.shader = sh
+	atmo.material_override = amat
+	_earth.add_child(atmo)
 
 	_sat = ModelLib.fit("cubesat", 1.4, "center")
 	if _sat == null:
@@ -174,6 +209,24 @@ func _build_farm() -> void:
 	cmat.roughness = 0.95
 	mmi.material_override = cmat
 	_farm.add_child(mmi)
+
+	# Real plants close to the camera paths: weed plants in the nearest fields, shrubs by the village.
+	var weeds: Array = []
+	var prng := RandomNumberGenerator.new()
+	prng.seed = 23
+	while weeds.size() < 260:
+		var pp := Vector3(prng.randf_range(-130.0, 70.0), 0.1, prng.randf_range(-40.0, 120.0))
+		if absf(pp.x - _river_x(pp.z)) < 7.0:
+			continue
+		# keep to the field edges and paths in front of the camera paths
+		if Vector2(pp.x + 75.0, pp.z - 70.0).length() > 70.0 and Vector2(pp.x - 35.0, pp.z - 40.0).length() > 45.0:
+			continue
+		weeds.append([pp, prng.randf() * TAU, prng.randf_range(0.7, 1.3)])
+	Outdoor.scatter(_farm, "weed_plant", weeds, 0.9)
+	var shrubs: Array = []
+	for sp in [Vector3(-98, 0, -20), Vector3(-114, 0, -4), Vector3(-132, 0, -52), Vector3(-92, 0, -40)]:
+		shrubs.append([sp, prng.randf() * TAU, prng.randf_range(0.85, 1.2)])
+	Outdoor.scatter(_farm, "searsia_shrub", shrubs, 3.2)
 
 	# The river, winding through the farms.
 	var wm := StandardMaterial3D.new()
@@ -329,7 +382,7 @@ func _process(delta: float) -> void:
 		"earth":
 			_cam.position = Vector3(0, 40, 2150).lerp(Vector3(0, 30, 1700), _ease(k))
 			_cam.look_at(Vector3(120, 30, 0), Vector3.UP)
-			_earth.spin.rotate_object_local(Vector3.UP, delta * 0.006)
+			_earth_model.rotate_object_local(Vector3.UP, delta * 0.004)
 		"farm":
 			_cam.position = Vector3(-150, 16, 120).lerp(Vector3(-75, 9, 70), _ease(k))
 			_cam.look_at(Vector3(20, 0, -30), Vector3.UP)
@@ -354,7 +407,7 @@ func _process(delta: float) -> void:
 			_beam.visible = k > 0.25
 			_beam.position = p + down * length * 0.5
 			_beam.basis = Basis(Quaternion(Vector3.UP, -down)).scaled(Vector3(1, length, 1))
-			_earth.spin.rotate_object_local(Vector3.UP, delta * 0.004)
+			_earth_model.rotate_object_local(Vector3.UP, delta * 0.002)
 		"director":
 			_black.modulate.a = clampf(_shot_t / 0.6, 0.0, 1.0)
 			_fade.modulate.a = clampf((_shot_t - (L - 0.9)) / 0.9, 0.0, 1.0)

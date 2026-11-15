@@ -134,24 +134,40 @@ func _build_level() -> void:
 	var hx := R.x / 2.0
 	_panel = preload("res://scripts/panels/AnalysisPanel.gd").new()
 	_panel.room = self
-	screen("Analysis Workstation", "SATELLITE IMAGERY ANALYSIS", Vector2(3.8, 2.3), Vector2i(1300, 790), Vector3(-hx + 0.06, 1.9, 0.0), 90.0, _panel)
+	screen("Analysis Workstation", "SATELLITE IMAGERY ANALYSIS", Vector2(3.8, 2.3), Vector2i(1000, 605), Vector3(-hx + 0.06, 1.9, 0.0), 90.0, _panel)
 	var desk := PartModels.mat(Color(0.95, 0.95, 0.95), 0.0, 0.4)
-	for x in [-4.0, 0.0, 4.0]:
+	# Three geospatial workstations on the desks (facing the analyst), each on a monitor stand
+	var stand := PartModels.mat(Color(0.12, 0.12, 0.13), 0.6, 0.35)
+	var ws := [[UserInstruments.Health, "CROP HEALTH (NDVI)", "Crop Health Map", -4.0],
+		[UserInstruments.Viewer, "SATELLITE IMAGE VIEWER", "Image Viewer", 0.0],
+		[UserInstruments.Flood, "FLOOD DETECTION", "Flood Detection Map", 4.0]]
+	for w in ws:
+		var x: float = w[3]
 		RoomKit.solid(self, Vector3(2.6, 0.06, 1.0), Vector3(x, 0.74, -hz + 2.0), desk)
 		for lx in [-1.15, 1.15]:
 			RoomKit.solid(self, Vector3(0.06, 0.74, 0.9), Vector3(x + lx, 0.37, -hz + 2.0), desk)
-		var mini := _MiniMap.new()
-		mini.room = self
-		screen("Imagery " + str(int(x)), "", Vector2(0.9, 0.55), Vector2i(360, 220), Vector3(x - 0.5, 1.12, -hz + 1.75), 180.0, mini)
-		add_child(PartModels.box(Vector3(0.6, 0.02, 0.2), PartModels.dark(), Vector3(x + 0.4, 0.78, -hz + 2.2)))
-	var obj := preload("res://scripts/panels/ObjectivePanel.gd").new()
-	obj.info = {"goal": "Turn data into action",
-		"story": "Out of the window are the farms our satellite photographed. Use the imagery to find the flooded plots, then choose how to warn farmers and officials. Grey plots have no imagery: what happens there is unknown.",
-		"decisions": ["Which plots are flooded", "What to send: emergency alert, flood map, crop report or dashboard", "How missing or late data limits what you can say"]}
-	screen("Objective", "OBJECTIVE", Vector2(3.0, 1.8), Vector2i(1000, 600), Vector3(hx - 0.06, 1.9, 0.0), -90.0, obj)
+		var sz := Vector2(1.75, 1.05)
+		var my := 0.77 + 0.16 + sz.y / 2.0
+		add_child(PartModels.box(Vector3(0.36, 0.02, 0.26), stand, Vector3(x, 0.78, -hz + 1.75)))
+		add_child(PartModels.box(Vector3(0.07, 0.24, 0.05), stand, Vector3(x, 0.89, -hz + 1.7)))
+		var d = screen(w[2], w[1], sz, Vector2i(860, 516), Vector3(x, my, -hz + 1.78), 0.0, null)
+		d.set_display(w[0].new())
+		add_child(PartModels.box(Vector3(0.6, 0.02, 0.2), PartModels.dark(), Vector3(x, 0.78, -hz + 2.25)))
+	# Region selection for the image viewer
+	button("◀ REGION", FUI.SKY, cycle_region.bind(-1), Vector3(-0.85, 0.8, -hz + 2.35))
+	button("REGION ▶", FUI.SKY, cycle_region.bind(1), Vector3(0.85, 0.8, -hz + 2.35))
+	MissionState.set_live("view_region", 0)
+	# Analysis results on the right wall
+	var res = screen("Analysis Results", "ANALYSIS RESULTS", Vector2(3.0, 1.85), Vector2i(900, 555), Vector3(hx - 0.12, 1.95, 0.0), -90.0, null)
+	res.set_display(UserInstruments.Results.new())
 	spawn = Vector3(0, 0.1, hz - 2.2)
 
 # ======================================================================= actions (from the analysis screen)
+## Show the next / previous farming region on the image viewer.
+func cycle_region(step: int) -> void:
+	var i := int(MissionState.live.get("view_region", 0))
+	MissionState.set_live("view_region", posmod(i + step, FarmRegions.REGIONS.size()))
+
 func toggle_mark(id: String) -> void:
 	if delivered:
 		return

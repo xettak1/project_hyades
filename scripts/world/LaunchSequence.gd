@@ -45,6 +45,7 @@ func _process(delta: float) -> void:
 	if _done:
 		return
 	t += delta
+	MissionState.live["launch_t"] = t
 	if t < 3.0:
 		lab.hud.show_message("T - %d" % (3 - int(t)), 0.5, FUI.AMBER)
 	elif _phase == "":

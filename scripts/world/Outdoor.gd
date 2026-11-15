@@ -164,6 +164,52 @@ static func clouds(parent: Node, count: int, area: float, height: float, seed :=
 	return root
 
 ## Trees as one MultiMesh (cheap). Avoids the rectangle `keep_out` (x0, z0, x1, z1).
+## Scatter a real plant model (e.g. "weed_plant") across the ground: one MultiMesh per mesh variant
+## in the model, so hundreds of plants cost only a few draw calls. points: Array of [pos, yaw, scale].
+## The model is sized so its tallest variant is `height` metres.
+static func scatter(parent: Node, model: String, points: Array, height := 1.0) -> void:
+	var path := "res://assets/models/%s.glb" % model
+	if not ResourceLoader.exists(path) or points.is_empty():
+		return
+	var root: Node3D = load(path).instantiate()
+	var variants: Array = []      # [mesh, basis, offset to stand on the ground]
+	var tallest := 0.001
+	for mi in root.find_children("*", "MeshInstance3D", true, false):
+		var t: Transform3D = mi.transform
+		var p: Node = mi.get_parent()
+		while p and p != root and p is Node3D:
+			t = (p as Node3D).transform * t
+			p = p.get_parent()
+		var ab: AABB = Transform3D(t.basis, Vector3.ZERO) * mi.mesh.get_aabb()
+		tallest = maxf(tallest, ab.size.y)
+		variants.append([mi.mesh, t.basis, -Vector3(ab.get_center().x, ab.position.y, ab.get_center().z)])
+	root.free()
+	if variants.is_empty():
+		return
+	var k := height / tallest
+	var groups: Array = []
+	for v in variants:
+		groups.append([])
+	for i in points.size():
+		groups[i % variants.size()].append(points[i])
+	for vi in variants.size():
+		var v: Array = variants[vi]
+		var pts: Array = groups[vi]
+		if pts.is_empty():
+			continue
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = v[0]
+		mm.instance_count = pts.size()
+		for i in pts.size():
+			var sc: float = k * float(pts[i][2])
+			var b := Basis(Vector3.UP, float(pts[i][1])) * Basis().scaled(Vector3.ONE * sc) * (v[1] as Basis)
+			mm.set_instance_transform(i, Transform3D(b, (pts[i][0] as Vector3) + Basis(Vector3.UP, float(pts[i][1])) * (v[2] as Vector3) * sc))
+		var mmi := MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if height < 1.5 else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		parent.add_child(mmi)
+
 static func trees(parent: Node, count: int, area: float, center := Vector3.ZERO, keep_out := Rect2(), seed := 7, scale := 1.0) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
