@@ -56,5 +56,8 @@ class _Stages extends Control:
 		draw_string(f, Vector2(size.x - 140, y + 4), "MISSION %d%%" % pct, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, FUI.MUTED)
 		var st: int = MissionState.worst_level(MissionState.assess()) if cur == 0 else int(MissionState.live.get("status_level", 0))
 		var sc: Color = [FUI.GREEN, FUI.AMBER, FUI.RED, Color("#ff3b3b")][clampi(st, 0, 3)]
+		var building := cur == 0 and (not MissionState.missing_parts().is_empty() or MissionState.rocket_id == "")
+		if building:
+			sc = FUI.SKY
 		draw_circle(Vector2(size.x - 40, y), 5.0, sc)
-		draw_string(f, Vector2(size.x - 31, y + 4), ["OK", "CAUT", "WARN", "CRIT"][clampi(st, 0, 3)], HORIZONTAL_ALIGNMENT_LEFT, -1, 10, sc)
+		draw_string(f, Vector2(size.x - 31, y + 4), "BUILD" if building else ["OK", "CAUT", "WARN", "CRIT"][clampi(st, 0, 3)], HORIZONTAL_ALIGNMENT_LEFT, -1, 10, sc)

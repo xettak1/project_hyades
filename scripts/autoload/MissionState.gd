@@ -29,13 +29,10 @@ var best_score: int:
 
 func start_mission(id: String) -> void:
 	mission_id = id
-	picks.clear()
-	for cat in GameData.categories(id):
-		var ids: Array = GameData.parts_for(id)[cat].keys()
-		picks[cat] = ids[0]        # start with the simple option of each part
+	picks.clear()                  # nothing preselected: the player installs every part
 	var m := GameData.mission(id)
 	orbit_id = m["orbits"][0]
-	rocket_id = m["rockets"][0]
+	rocket_id = ""                 # no rocket chosen yet
 	lifetime_years = m["requirements"]["min_lifetime"]
 	last_result = {}
 	level_results = {}
@@ -74,6 +71,15 @@ func orbit() -> Dictionary:
 func rocket() -> Dictionary:
 	return GameData.ROCKETS.get(rocket_id, {})
 
+## True once the player has installed any part or chosen a rocket. Before that the mission
+## has spent nothing and weighs nothing.
+func design_started() -> bool:
+	return not picks.is_empty() or rocket_id != ""
+
+## Categories still waiting for a part.
+func missing_parts() -> Array:
+	return categories().filter(func(c): return not picks.has(c))
+
 func has_fuel_system() -> bool:
 	return orbit().has("delta_v_insert")
 
@@ -83,8 +89,10 @@ func compute() -> Dictionary:
 	var o := orbit()
 	var r := rocket()
 
-	var dry: float = m["base_mass"]
-	var hw_cost: float = m["base_cost"]
+	# The bus structure and its cost only count once you start building.
+	var started := design_started()
+	var dry: float = float(m["base_mass"]) if started else 0.0
+	var hw_cost: float = float(m["base_cost"]) if started else 0.0
 	var load_w := 0.0
 	for cat in categories():
 		var p := part_of(cat)
@@ -109,7 +117,8 @@ func compute() -> Dictionary:
 
 	var transfer_years: float = float(o.get("transfer_days", 0)) / 365.0
 	var rocket_cost: float = float(r.get("cost", 0.0)) + maxf(0.0, wet - float(r.get("included_kg", 0.0))) * float(r.get("per_kg", 0.0))
-	var cost: float = hw_cost + rocket_cost + float(m["ops_cost_per_year"]) * (lifetime_years + transfer_years)
+	var ops: float = float(m["ops_cost_per_year"]) * (lifetime_years + transfer_years) if started else 0.0
+	var cost: float = hw_cost + rocket_cost + ops
 
 	# Power: panels only work in sunlight, so average = peak x (1 - eclipse fraction).
 	var eclipse_frac: float = float(o["eclipse_min"]) / float(o["period_min"])
@@ -173,7 +182,12 @@ func gate() -> Dictionary:
 	var hard: Array = []
 	var warn: Array = []
 
-	if x["rocket_cap"] <= 0.0:
+	var missing := missing_parts()
+	if not missing.is_empty():
+		hard.append("Install every part first. Still missing: %s." % ", ".join(missing.map(func(c): return String(c).capitalize())))
+	if rocket_id == "":
+		hard.append("Choose a launch rocket at the Mission Console.")
+	elif x["rocket_cap"] <= 0.0:
 		hard.append("The %s cannot reach the %s. Pick a rocket that flies there." % [rocket()["name"], orbit()["name"]])
 	elif x["mass"] > x["rocket_cap"]:
 		hard.append("Spacecraft is %.0f kg at launch but the rocket can carry only %.0f kg there." % [x["mass"], x["rocket_cap"]])
@@ -311,7 +325,7 @@ func budget_left() -> float:
 ## Result of Level 1, handed to Level 2.
 func launch_results() -> Dictionary:
 	var x: Dictionary = compute()["extra"]
-	return {"rocket": rocket()["name"], "orbit": orbit()["name"], "orbit_id": orbit_id, "rocket_id": rocket_id,
+	return {"rocket": rocket().get("name", "-"), "orbit": orbit()["name"], "orbit_id": orbit_id, "rocket_id": rocket_id,
 		"mass_kg": x["mass"], "launch_cost": x["rocket_cost"], "total_cost": x["cost"], "budget_left": budget_left(),
 		"picks": picks.duplicate(), "lifetime_years": lifetime_years}
 

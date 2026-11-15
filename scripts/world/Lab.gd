@@ -62,7 +62,7 @@ var _launch_delay := 0.0
 var _confirm_time := 0.0
 
 func _ready() -> void:
-	if MissionState.picks.is_empty():
+	if MissionState.mission_id == "":
 		MissionState.start_mission("flood_watch")
 	MissionState.phase = "design"
 	MissionState.live = {}

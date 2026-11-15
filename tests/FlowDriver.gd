@@ -27,6 +27,10 @@ func run() -> void:
 	await _wait_card_then_skip("1_card_launch")
 	var lab = get_tree().current_scene
 	await _shot("1_launch_room", 20)
+	print("start: mass=%.2f cost=%.2f gate_hard=%d" % [MissionState.compute()["extra"]["mass"], MissionState.compute()["extra"]["cost"], MissionState.gate()["hard"].size()])
+	for cat in MissionState.categories():      # nothing is preselected: install the simple parts
+		MissionState.pick(cat, GameData.parts_for(MissionState.mission_id)[cat].keys()[0])
+	MissionState.set_rocket(MissionState.mission()["rockets"][0])
 	MissionState.pick("adcs", "fcw_adcs_advanced")
 	MissionState.set_orbit("sso_700")
 	lab._launch()

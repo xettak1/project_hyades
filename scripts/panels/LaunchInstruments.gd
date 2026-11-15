@@ -142,7 +142,7 @@ class Rocket extends AV.Display:
 		var x: Dictionary = MissionState.compute()["extra"]
 		var a := MissionState.assess(x)
 		var g := MissionState.gate()
-		vehicle.set_value(MissionState.rocket()["name"].split(" (")[0], AV.WHITE)
+		vehicle.set_value(MissionState.rocket().get("name", "NOT SELECTED").split(" (")[0], AV.WHITE if MissionState.rocket_id != "" else AV.WARN)
 		var lt: float = MissionState.live.get("launch_t", -1.0)
 		var ph: String = MissionState.live.get("launch_phase", "")
 		if lt < 0.0:

@@ -24,8 +24,11 @@ var hud: CanvasLayer
 var spawn := Vector3.ZERO
 
 func _ready() -> void:
-	if MissionState.picks.is_empty():
+	if MissionState.missing_parts().size() == MissionState.categories().size():
 		MissionState.start_mission("flood_watch")
+		for cat in MissionState.categories():        # opened directly (tests): use the simple parts
+			MissionState.picks[cat] = GameData.parts_for(MissionState.mission_id)[cat].keys()[0]
+		MissionState.rocket_id = MissionState.mission()["rockets"][0]
 	MissionState.phase = LevelFlow.current_id() if LevelFlow.index >= 0 else "segment"
 	add_to_group("level")
 	MissionState.live = {}

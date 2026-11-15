@@ -6,13 +6,21 @@ extends CanvasLayer
 
 const LEVELS := [
 	{"id": "launch", "n": 1, "title": "LAUNCH SEGMENT", "goal": "Get the mission into space", "scene": "res://scenes/Lab.tscn", "where": "LAUNCH CONTROL CENTRE · COASTAL LAUNCH SITE, EARTH",
-		"intro": "Build your CubeSat, choose the rocket and orbit, and launch."},
+		"intro": "Build your CubeSat, choose the rocket and orbit, and launch.",
+		"objectives": ["Install a part in every slot on the shelves", "Pick an orbit and a launch rocket at the Mission Console", "Stay within budget and mass, then press LAUNCH"],
+		"learn": "Every part costs money, mass and power. The trade-offs you make here decide what works later."},
 	{"id": "space", "n": 2, "title": "SPACE SEGMENT", "goal": "Observe the farmland", "scene": "res://scenes/SpaceSegment.tscn", "where": "ON BOARD THE SATELLITE · 700 KM ABOVE AFRICA",
-		"intro": "Choose your instrument and how to use it. Power and storage are limited."},
+		"intro": "Point your camera at the farmland below. Power and storage are limited.",
+		"objectives": ["Open the Observation Console and pick a region that is in view", "Scan the farm regions, avoiding thick clouds", "Watch your power and memory, then end the campaign"],
+		"learn": "A satellite only sees what passes beneath it, and every picture uses power and storage."},
 	{"id": "ground", "n": 3, "title": "GROUND SEGMENT", "goal": "Get the data home", "scene": "res://scenes/GroundSegment.tscn", "where": "SATELLITE GROUND STATION · EARTH",
-		"intro": "Collecting data is not the same as delivering it. Build the link to Earth."},
+		"intro": "Collecting data is not the same as delivering it. Build the link to Earth.",
+		"objectives": ["Choose which pictures come down first: floods or crops", "Start the pass and watch the dishes track the satellite", "See how much data the radio link can really carry"],
+		"learn": "The radio link is the bottleneck: what doesn't fit through it stays in space."},
 	{"id": "user", "n": 4, "title": "USER SEGMENT", "goal": "Turn data into action", "scene": "res://scenes/UserSegment.tscn", "where": "AGRICULTURAL ANALYSIS CENTRE · EARTH",
-		"intro": "Interpret the imagery and warn the people who need it."},
+		"intro": "Interpret the imagery and warn the people who need it.",
+		"objectives": ["Open the Analysis Workstation and study the imagery", "Mark every flooded plot", "Choose how to warn people, then deliver the report"],
+		"learn": "Data only helps if it reaches the right people, in time."},
 ]
 const RESULTS_SCENE := "res://scenes/MissionResults.tscn"
 const TITLE_SCENE := "res://scenes/Main.tscn"
@@ -27,6 +35,9 @@ var _l_goal: Label
 var _l_intro: Label
 var _l_carry: Label
 var _l_hint: Label
+var _obj_box: PanelContainer
+var _obj_list: VBoxContainer
+var _l_learn: Label
 var _skip := false
 
 func _ready() -> void:
@@ -46,12 +57,29 @@ func _ready() -> void:
 	_card.add_theme_constant_override("separation", 10)
 	_card.custom_minimum_size = Vector2(760, 0)
 	center.add_child(_card)
-	_l_step = _lab(18, FUI.SKY, "mono_semi")
-	_l_title = _lab(54, FUI.WHITE, "sans_semi")
-	_l_goal = _lab(26, FUI.AMBER, "sans_med")
+	_card.custom_minimum_size = Vector2(820, 0)
+	_l_step = _lab(18, FUI.SKY, "sans_semi")
+	_l_title = _lab(76, FUI.WHITE, "sans_semi")
+	_l_goal = _lab(28, FUI.AMBER, "sans_med")
 	_l_intro = _lab(19, FUI.TEXT2, "sans")
-	_l_carry = _lab(15, FUI.MUTED, "mono")
-	_l_hint = _lab(14, FUI.DIM, "mono")
+	# Level preview: what you will do here, and why it matters
+	_obj_box = PanelContainer.new()
+	var st := FUI.box(Color(0.04, 0.07, 0.12, 0.92), Color(FUI.SKY, 0.35), 10, 20)
+	st.border_width_left = 4
+	_obj_box.add_theme_stylebox_override("panel", st)
+	_card.add_child(_obj_box)
+	var ov := VBoxContainer.new()
+	ov.add_theme_constant_override("separation", 10)
+	_obj_box.add_child(ov)
+	ov.add_child(FUI.t("YOUR OBJECTIVES", 16, FUI.SKY, "sans_semi"))
+	_obj_list = VBoxContainer.new()
+	_obj_list.add_theme_constant_override("separation", 8)
+	ov.add_child(_obj_list)
+	_l_learn = FUI.t("", 16, FUI.GREEN, "sans_med")
+	_l_learn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	ov.add_child(_l_learn)
+	_l_carry = _lab(15, FUI.MUTED, "sans")
+	_l_hint = _lab(16, FUI.DIM, "sans_med")
 	_card.visible = false
 
 func _lab(size: int, color: Color, kind: String) -> Label:
@@ -133,20 +161,38 @@ func _go(scene: String, show_card: bool) -> void:
 	if show_card:
 		SaveGame.save_progress(index)
 		var lv := current()
-		_l_step.text = "LEVEL %d OF %d  ·  %s" % [lv["n"], LEVELS.size(), lv.get("where", "")]
+		_l_step.text = ""
+		_l_step.visible = false
 		_l_title.text = lv["title"]
 		_l_goal.text = lv["goal"]
 		_l_intro.text = lv["intro"]
 		_l_carry.text = carry_line()
 		_l_carry.visible = _l_carry.text != ""
-		_l_hint.text = "click or press Enter to begin"
+		for c in _obj_list.get_children():
+			_obj_list.remove_child(c)
+			c.queue_free()
+		var objs: Array = lv.get("objectives", [])
+		for i in objs.size():
+			var row := HBoxContainer.new()
+			row.add_theme_constant_override("separation", 12)
+			var num := FUI.t(str(i + 1), 20, FUI.AMBER, "sans_semi")
+			num.custom_minimum_size = Vector2(24, 0)
+			row.add_child(num)
+			var tx := FUI.t(objs[i], 19, FUI.WHITE, "sans_med")
+			tx.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			tx.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			row.add_child(tx)
+			_obj_list.add_child(row)
+		_l_learn.text = "WHY IT MATTERS:  " + str(lv.get("learn", ""))
+		_obj_box.visible = not objs.is_empty()
+		_l_hint.text = "Click or press Enter to begin"
 		_card.visible = true
 		_card.modulate.a = 0.0
 		var tc := create_tween()
 		tc.tween_property(_card, "modulate:a", 1.0, 0.4)
 		_skip = false
 		var t := 0.0
-		while t < 4.5 and not _skip:
+		while not _skip:
 			await get_tree().process_frame
 			t += get_process_delta_time()
 		var tc2 := create_tween()

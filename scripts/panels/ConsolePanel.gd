@@ -73,7 +73,7 @@ func refresh() -> void:
 	_choice_row("ROCKET", m["rockets"], GameData.ROCKETS, MissionState.rocket_id, MissionState.set_rocket)
 	var cap: float = x["rocket_cap"]
 	var reach := "cannot reach this orbit!" if cap <= 0.0 else "carries up to %.0f kg there" % cap
-	add_child(UI.label("NOW: %s, $%.2fM, %s" % [r["name"], x["rocket_cost"], reach], 13, UI.COLOR_BAD if cap <= 0.0 or x["mass"] > cap else UI.COLOR_MUTED))
+	add_child(UI.label(("NOW: %s, $%.2fM, %s" % [r["name"], x["rocket_cost"], reach]) if not r.is_empty() else "NO ROCKET CHOSEN YET: pick one above", 13, UI.COLOR_BAD if cap <= 0.0 or x["mass"] > cap else UI.COLOR_MUTED))
 	_alternatives("rocket", m["rockets"], GameData.ROCKETS, MissionState.rocket_id, now)
 
 	var life := UI.hbox(10)

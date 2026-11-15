@@ -45,9 +45,10 @@ var _fade: ColorRect
 var _black: ColorRect
 var _center: VBoxContainer
 var _lines: Array = []
+var _skip_btn: Control
 
 func _ready() -> void:
-	Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	get_tree().paused = false
 	_we = WorldEnvironment.new()
 	add_child(_we)
@@ -342,17 +343,22 @@ func _build_ui() -> void:
 		_center.add_child(l)
 		_lines.append(l)
 
-	var skip := FUI.t("SPACE  to skip", 13, Color(1, 1, 1, 0.45), "mono_med")
+	# Skip button (also Space / Esc / Enter)
+	var skip := MenuButtonBar.new("SKIP  ▸▸", Vector2(170, 40))
 	skip.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	skip.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	skip.position = Vector2(-150, 34)
-	ui.add_child(skip)
+	skip.offset_left = -196
+	skip.offset_right = -26
+	skip.offset_top = 22
+	skip.offset_bottom = 62
+	skip.pressed.connect(_finish)
+	_skip_btn = skip
 
 	_fade = ColorRect.new()
 	_fade.color = Color.BLACK
 	_fade.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui.add_child(_fade)
+	ui.add_child(_skip_btn)
 
 # ======================================================================= timeline
 func _process(delta: float) -> void:
@@ -452,8 +458,7 @@ func _set_weather(s: float) -> void:
 	_farm_env.ambient_light_energy = lerpf(0.5, 0.45, s)
 
 func _input(event: InputEvent) -> void:
-	if (event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_SPACE, KEY_ESCAPE, KEY_ENTER, KEY_KP_ENTER]) \
-			or (event is InputEventMouseButton and event.pressed):
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_SPACE, KEY_ESCAPE, KEY_ENTER, KEY_KP_ENTER]:
 		get_viewport().set_input_as_handled()
 		_finish()
 
@@ -465,5 +470,4 @@ func _finish() -> void:
 	tw.tween_property(_fade, "modulate:a", 1.0, 0.5)
 	await tw.finished
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	MissionState.open_brief = true
-	get_tree().change_scene_to_file("res://scenes/Main.tscn")
+	LevelFlow.start()

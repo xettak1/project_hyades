@@ -41,7 +41,7 @@ func _ready() -> void:
 	head.pressed.connect(toggle)
 	var hv := FUI.hb(6)
 	hv.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_title = FUI.t(TITLES.get(level, ""), 14, FUI.SKY, "mono_semi")
+	_title = FUI.t(TITLES.get(level, ""), 16, FUI.SKY, "sans_semi")
 	hv.add_child(_title)
 	hv.add_child(FUI.grow())
 	_sub = FUI.t("I ▾", 10, FUI.DIM, "mono")
@@ -67,7 +67,6 @@ func _build_rows() -> void:
 		"launch":
 			_row("left", "money", "Budget left")
 			_row("mass", "mass", "Spacecraft mass")
-			_row("payload", "rocket", "Rocket capacity")
 			_row("ready", "ready", "Launch readiness")
 		"space":
 			_row("battery", "battery", "Battery (lowest in eclipse)")
@@ -130,11 +129,11 @@ func refresh() -> void:
 			var left := budget - float(x["cost"])
 			_put("left", "$%.2fM / $%.0fM" % [left, budget], _lv(a, "budget_used"), left / budget)
 			_put("mass", "%.1f / %s kg" % [x["mass"], str(m["mass_limit"])], _lv(a, "mass_used"), x["mass"] / float(m["mass_limit"]))
-			var cap: float = x["rocket_cap"]
-			_put("payload", ("%.1f / %.0f kg" % [x["mass"], cap]) if cap > 0.0 else "can't reach orbit", _lv(a, "rocket_used"), x["mass"] / cap if cap > 0.0 else 1.0)
 			var g := MissionState.gate()
 			var near := maxi(maxi(_lv(a, "mass_used"), _lv(a, "budget_used")), _lv(a, "rocket_used"))
-			if not g["hard"].is_empty():
+			if not MissionState.missing_parts().is_empty() or MissionState.rocket_id == "":
+				_put("ready", "NOT READY", 1)
+			elif not g["hard"].is_empty():
 				_put("ready", "INVALID", 3)
 			elif near >= 1:
 				_put("ready", "NEAR LIMIT", 1)

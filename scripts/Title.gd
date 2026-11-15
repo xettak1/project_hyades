@@ -18,6 +18,8 @@ var _t := 0.0
 var _menu: Control
 var _options: Control
 var _brief: Control
+var _select: Control
+var _fader: ColorRect
 var _logo: Control
 
 func _ready() -> void:
@@ -37,11 +39,19 @@ func _ready() -> void:
 	ui.add_child(_options)
 	_brief = _build_briefing()
 	ui.add_child(_brief)
-	if MissionState.open_brief:
-		MissionState.open_brief = false
-		_show(_brief)
+	_select = _build_select()
+	ui.add_child(_select)
+	_fader = ColorRect.new()
+	_fader.color = Color.BLACK
+	_fader.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_fader.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_fader.modulate.a = 0.0
+	ui.add_child(_fader)
+	if MissionState.open_select:
+		_show(_select)
 	else:
 		_show(_menu)
+	MissionState.open_brief = false
 	MissionState.open_select = false
 
 # ---------------------------------------------------------------- 3D backdrop
@@ -183,9 +193,9 @@ func _process(delta: float) -> void:
 
 # ---------------------------------------------------------------- building blocks
 func _show(page: Control) -> void:
-	for p in [_menu, _options, _brief]:
+	for p in [_menu, _options, _brief, _select]:
 		p.visible = (p == page)
-	_logo.visible = page != _brief
+	_logo.visible = page == _menu or page == _options
 
 func _full() -> Control:
 	var c := Control.new()
@@ -282,14 +292,87 @@ func _build_menu() -> Control:
 	newb.call_deferred("grab_focus")
 	return root
 
+## NEW GAME: fresh mission state, then the mission-select screen.
 func _new_game() -> void:
 	MissionState.start_mission("flood_watch")
 	MissionState.tutor_enabled = SaveGame.tutor
 	MissionState.tutor_steps = {}
+	_show(_select)
+
+## The Flood Monitoring card: fade out, play the cinematic trailer (if enabled), then Level 1.
+func _launch_flood() -> void:
+	if _fader.modulate.a > 0.01:
+		return
+	MissionState.start_mission("flood_watch")
+	MissionState.tutor_enabled = SaveGame.tutor
+	MissionState.tutor_steps = {}
+	_fader.mouse_filter = Control.MOUSE_FILTER_STOP
+	var tw := create_tween()
+	tw.tween_property(_fader, "modulate:a", 1.0, 0.7).set_trans(Tween.TRANS_SINE)
+	await tw.finished
 	if SaveGame.play_intro:
 		get_tree().change_scene_to_file("res://scenes/Intro.tscn")
 	else:
-		_show(_brief)
+		LevelFlow.start()
+
+# ---------------------------------------------------------------- mission select (2 x 2 cards)
+const MISSION_CARDS := [
+	["res://assets/textures/mission_flood.jpg", "Flood Monitoring", "EARTH OBSERVATION · WEST AFRICA",
+		"Design, launch and operate a small satellite that spots floods and crop stress, then warn farmers in time.", false],
+	["res://assets/textures/mission_radar.jpg", "Ocean & Ice Radar", "RADAR · POLAR ORBIT",
+		"Map sea ice and ocean storms through clouds and darkness with a power-hungry radar satellite.", true],
+	["res://assets/textures/mission_lunar.jpg", "Lunar Mapper", "DEEP SPACE · MOON",
+		"Brake into lunar orbit and map landing sites. Every kilogram of fuel decides how long you last.", true],
+	["res://assets/textures/mission_wildfire.jpg", "Wildfire Watch", "THERMAL INFRARED · SAVANNA",
+		"Catch fires in their first hours with heat-seeing cameras and get alerts to rangers fast.", true],
+]
+
+func _build_select() -> Control:
+	var root := _full()
+	root.mouse_filter = Control.MOUSE_FILTER_PASS
+	var dim := ColorRect.new()
+	dim.color = Color(0.0, 0.01, 0.03, 0.55)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(dim)
+	var m := MarginContainer.new()
+	m.set_anchors_preset(Control.PRESET_FULL_RECT)
+	for side in ["left", "right"]:
+		m.add_theme_constant_override("margin_" + side, 56)
+	m.add_theme_constant_override("margin_top", 34)
+	m.add_theme_constant_override("margin_bottom", 34)
+	root.add_child(m)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 18)
+	m.add_child(v)
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 16)
+	v.add_child(head)
+	var hv := VBoxContainer.new()
+	hv.add_theme_constant_override("separation", 2)
+	hv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hv.add_child(_text("SELECT A MISSION", 34, Color.WHITE, "sans_semi", 6))
+	hv.add_child(_text("Choose where your satellite goes. More missions unlock as you complete the first one.", 15, Color(CREAM, 0.7), "sans"))
+	head.add_child(hv)
+	var back := MenuButtonBar.new("BACK", Vector2(170, 44))
+	back.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	back.pressed.connect(func(): _show(_menu))
+	head.add_child(back)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 22)
+	grid.add_theme_constant_override("v_separation", 22)
+	grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.add_child(grid)
+	for c in MISSION_CARDS:
+		var card := MissionCard.new(c[0], c[1], c[2], c[3], c[4])
+		if not c[4]:
+			card.chosen.connect(_launch_flood)
+			card.call_deferred("grab_focus")
+		grid.add_child(card)
+	return root
+
 
 func _continue() -> void:
 	var i := SaveGame.restore()

@@ -24,10 +24,10 @@ func _ready() -> void:
 	await get_tree().create_timer(0.5).timeout
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png("/tmp/title/options.png")
-	s._show(s._brief)
-	await get_tree().create_timer(0.5).timeout
+	s._show(s._select)
+	await get_tree().create_timer(0.8).timeout
 	await RenderingServer.frame_post_draw
-	get_viewport().get_texture().get_image().save_png("/tmp/title/brief.png")
+	get_viewport().get_texture().get_image().save_png("/tmp/title/select.png")
 	get_tree().quit()
 
 var _t0 := 0.0

@@ -84,7 +84,7 @@ func context() -> Dictionary:
 		"eclipse": str(int(o["eclipse_min"])), "period": str(int(o["period_min"])), "contact": str(int(o["contact_min_per_day"])),
 		"data_gen": "%.2f" % x["data_gen"], "downlink": "%.2f" % x["downlink"], "useful": "%.2f" % x["useful_per_day"],
 		"min_data": "%.1f" % req["min_data_delivered"], "max_revisit": str(req["max_revisit_days"]), "min_life": str(req["min_lifetime"]),
-		"revisit": str(x["revisit"]), "pointing_pct": str(int(100.0 * x["pointing"])), "orbit": o["name"], "rocket": MissionState.rocket()["name"],
+		"revisit": str(x["revisit"]), "pointing_pct": str(int(100.0 * x["pointing"])), "orbit": o["name"], "rocket": MissionState.rocket().get("name", "no rocket yet"),
 		"rocket_cost": "%.2f" % x["rocket_cost"], "orbit_lines": " ".join(lines),
 		"days": str(int(30)), "collected": "%.1f" % r.get("space", {}).get("collected_gb", 0.0),
 		"received": "%.1f" % r.get("ground", {}).get("received_gb", 0.0),
@@ -183,7 +183,7 @@ func _on_design_changed() -> void:
 		match rule.get("when", ""):
 			"pick":
 				var cat: String = rule["category"]
-				if now["picks"].get(cat, "") != _snap["picks"].get(cat, "") and GameData.part(cat, now["picks"][cat]).get("tier", "") == rule["tier"]:
+				if now["picks"].get(cat, "") != _snap["picks"].get(cat, "") and GameData.part(cat, now["picks"].get(cat, "")).get("tier", "") == rule["tier"]:
 					found.append([1, rule])
 			"rocket":
 				if now["rocket"] != _snap["rocket"] and now["rocket"] == rule["id"]:

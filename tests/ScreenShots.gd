@@ -12,6 +12,10 @@ func _ready() -> void:
 	level = OS.get_environment("LEVEL") if OS.get_environment("LEVEL") != "" else "launch"
 	DirAccess.make_dir_recursive_absolute("/tmp/scr")
 	MissionState.start_mission("flood_watch")
+	if OS.get_environment("LEVEL") != "launch":
+		for cat in MissionState.categories():
+			MissionState.picks[cat] = GameData.parts_for(MissionState.mission_id)[cat].keys()[0]
+		MissionState.rocket_id = MissionState.mission()["rockets"][0]
 	MissionState.tutor_enabled = true
 	MissionState.tutor_steps = {}
 	MissionState.level_results = {

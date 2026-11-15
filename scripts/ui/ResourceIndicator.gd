@@ -20,13 +20,13 @@ func _init(icon_name: String = "info", label_text: String = "") -> void:
 	_icon.custom_minimum_size = Vector2(18, 18)
 	_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(_icon)
-	_label = FUI.t(label_text, 12, FUI.MUTED, "sans_med")
+	_label = FUI.t(label_text, 14, FUI.MUTED, "sans_med")
 	_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_label.clip_text = true
 	_label.custom_minimum_size = Vector2(96, 0)
 	_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	row.add_child(_label)
-	_value = FUI.t("", 13, FUI.WHITE, "mono_semi")
+	_value = FUI.t("", 15, FUI.WHITE, "sans_semi")
 	row.add_child(_value)
 	_bar = Bar.new()
 	_bar.custom_minimum_size = Vector2(0, 5)

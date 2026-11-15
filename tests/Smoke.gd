@@ -30,6 +30,9 @@ func _ready() -> void:
 	print("title ok")
 	for mid in GameData.MISSION_ORDER:
 		MissionState.start_mission(mid)
+		for cat in MissionState.categories():      # start from the simple parts and the first rocket
+			MissionState.picks[cat] = GameData.parts_for(mid)[cat].keys()[0]
+		MissionState.rocket_id = MissionState.mission()["rockets"][0]
 		var lab = load("res://scenes/Lab.tscn").instantiate()
 		add_child(lab)
 		await get_tree().process_frame
@@ -71,6 +74,9 @@ func _ready() -> void:
 
 func _try(mid: String, dname: String, d: Dictionary) -> void:
 	MissionState.start_mission(mid)
+	for cat in MissionState.categories():      # start from the simple parts and the first rocket
+		MissionState.picks[cat] = GameData.parts_for(mid)[cat].keys()[0]
+	MissionState.rocket_id = MissionState.mission()["rockets"][0]
 	for cat in d.get("parts", {}):
 		MissionState.pick(cat, d["parts"][cat])
 	if d.has("orbit"):
